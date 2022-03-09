@@ -43,7 +43,11 @@ Useful commands for testing service/API locally.
 `$ curl http://localhost:8000/v1/locations/1/games/1`
 
 ##### Update information for game at location
-`$ curl -X PUT http://localhost:8000/v1/locations/1/games/1 -H 'C1ntent-Type: application/json' -d '{"name":"Attack From Lars", "abbreviation": "AFL"}'`
+`$ curl -X PUT http://localhost:8000/v1/locations/1/games/1 -H 'Content-Type: application/json' -d '{"name":"Attack From Lars", "abbreviation": "AFL"}'`
 
 ##### Delete game at location
 `$ curl -X DELETE http://localhost:8000/v1/locations/1/games/1`
+
+
+##### Add note to game at location
+`curl -X POST http://localhost:8000/v1/locations/1/games/2/notes -H 'Content-Type: application/json' -d '{"note":"Autoplunger is infested with cows"}'`

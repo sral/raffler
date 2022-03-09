@@ -39,6 +39,12 @@ struct UpdateGameRequest {
     abbreviation: String,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(crate = "rocket::serde")]
+struct AddNoteRequest {
+    note: String,
+}
+
 // API responses. Should be moved out of DB.
 
 #[derive(Debug, Clone, Serialize)]
@@ -368,6 +374,63 @@ async fn delete_game_at_location_by_id(
     Ok((result.rows_affected() == 1).then(|| ()))
 }
 
+#[post(
+    "/<location_id>/games/<game_id>/notes",
+    format = "application/json",
+    data = "<request>"
+)]
+async fn add_note_for_game_at_location(
+    mut db: Connection<Db>,
+    location_id: i64,
+    game_id: i64,
+    request: Json<AddNoteRequest>,
+) -> Result<Created<Json<IdResponse>>> {
+    let mut tx = db.begin().await?;
+
+    // TODO: PlayerId needs to come from authorization/sessions.
+
+    let game_id = sqlx::query!(
+        r#"INSERT INTO note (note, game_id )
+                VALUES (?, ?)"#,
+        request.note,
+        game_id,
+    )
+    .execute(&mut tx)
+    .await?
+    .last_insert_rowid();
+
+    tx.commit().await?;
+    Ok(Created::new("/").body(Json(IdResponse { id: game_id })))
+}
+
+#[delete("/<location_id>/games/<game_id>/notes/<note_id>")]
+async fn delete_note_for_game_by_id(
+    mut db: Connection<Db>,
+    location_id: i64,
+    game_id: i64,
+    note_id: i64,
+) -> Result<Option<()>> {
+    // TODO:
+    // - Needs to authorize
+    // - Nedes to mark all related data as deleted
+    let mut tx = db.begin().await?;
+
+    let result = sqlx::query!(
+        r#"DELETE FROM note
+            WHERE game_id = ?
+              AND id = ?"#,
+        game_id,
+        note_id
+    )
+    .execute(&mut tx)
+    .await?;
+
+    tx.commit().await?;
+
+    // Fix this return value, don't use result?
+    Ok((result.rows_affected() == 1).then(|| ()))
+}
+
 async fn run_migrations(rocket: Rocket<Build>) -> fairing::Result {
     match Db::fetch(&rocket) {
         Some(db) => match sqlx::migrate!("./migrations").run(&**db).await {
@@ -398,6 +461,8 @@ pub fn stage() -> AdHoc {
                     add_game_at_location,
                     update_game_at_location,
                     delete_game_at_location_by_id,
+                    add_note_for_game_at_location,
+                    delete_note_for_game_by_id,
                 ],
             )
     })

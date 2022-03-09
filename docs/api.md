@@ -1,5 +1,7 @@
 ### Locations
 
+Actions related to locations.
+
 #### List all locations
 
 Example request:
@@ -59,7 +61,6 @@ Content-Type: application/json
     "name: "The Church of Slap Saves",
 }
 ```
-
 #### Remove location
 Example request:
 ```DELETE v1/locations/{location_id} HTTP/1.1```
@@ -69,6 +70,7 @@ Example response:
 
 ### Games
 
+Actions related to games.
 #### List all games at location
 
 Example request:
@@ -181,7 +183,6 @@ Example response:
 ```
 HTTP/1.1 200 OK
 ```
-
 #### Remove game from location
 Example request:
 ```
@@ -192,40 +193,6 @@ Example response:
 ```
 HTTP/1.1 200 OK
 ```
-
-#### List notes for game at locations
-TODO: Maybe? Nested in game response. Depends on how we want things to work.
-
-#### Add note for game at location
-```
-POST v1/locations/{location_id}/games/<game_id>/notes HTTP/1.1
-Content-Type: application/json
-
-{
-    "note": "Auto plunger infested by cows"
-}
-```
-Example response
-```
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-    "id": 3,
-}
-```
-
-#### Delete note for game at location
-Example request:
-```
-DELETE v1/locations/{location_id}/games/{game_id}/note/<note_id> HTTP/1.1
-```
-
-Example response:
-```
-HTTP/1.1 200 OK
-```
-
 #### List reservations for game at location
 If we ever want to construct reservation history in some sort of game overview.
 Might not be implemented/required. Could be baked into game object when fetching specific
@@ -255,7 +222,6 @@ Content-Type: application/json
     ]
 }
 ```
-
 #### Reserve random game at location
 
 Example request:
@@ -283,7 +249,6 @@ Content-Type: application/json
     ]
 }
 ```
-
 #### Reserve game at location
 
 Example request:
@@ -295,12 +260,50 @@ Example response:
 ```
 HTTP/1.1 200 OK
 ```
-
 #### Release current game reservation at location
 
 Example request:
 ```
 DELETE v1/locations/{location_id}/games/{game_id}/reservation HTTP/1.1
+```
+
+Example response:
+```
+HTTP/1.1 200 OK
+```
+
+### Notes
+
+Actions related to notes. Notes can be used as for example a service log.
+
+#### Create note
+
+#### List notes for game at locations
+TODO: Maybe? Nested in game response. Depends on how we want things to work.
+
+#### Add note for game at location
+```
+POST v1/locations/{location_id}/games/<game_id>/notes HTTP/1.1
+Content-Type: application/json
+
+{
+    "note": "Auto plunger infested with cows"
+}
+```
+Example response
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "id": 3,
+}
+```
+
+#### Delete note for game at location
+Example request:
+```
+DELETE v1/locations/{location_id}/games/{game_id}/note/<note_id> HTTP/1.1
 ```
 
 Example response:
@@ -316,35 +319,6 @@ be functional without signing in.
 
 Logging in will setup a session which will be used for authorization. Details TBD.
 
-#### Login player
-Example request:
-```
-POST v1/players/login HTTP/1.1
-Content-Type: application/json
-
-{
-    "username": "",
-    "password": "",
-}
-```
-Example response
-```
-HTTP/1.1 200 OK
-Content-Type: application/json
-```
-
-### Logout player
-Example request:
-```
-GET v1/players/{player_id}/logout HTTP/1.1
-Content-Type: application/json
-
-```
-Example response
-```
-HTTP/1.1 200 OK
-Content-Type: application/json
-```
 #### Create player
 Example request:
 ```
@@ -380,6 +354,36 @@ Example request:
 
 Example response:
 ```HTTP/1.1 200 OK```
+
+#### Login player
+Example request:
+```
+POST v1/players/login HTTP/1.1
+Content-Type: application/json
+
+{
+    "username": "",
+    "password": "",
+}
+```
+Example response
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
+
+### Logout player
+Example request:
+```
+GET v1/players/{player_id}/logout HTTP/1.1
+Content-Type: application/json
+
+```
+Example response
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
 
 ### Tournaments
 TBD! The intent is to allow creating and running tournaments with automated matchmaking, scorekeeping,
