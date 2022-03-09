@@ -1,0 +1,446 @@
+use rocket::fairing::{self, AdHoc};
+use rocket::response::status::Created;
+use rocket::serde::{json::Json, Deserialize, Serialize};
+use rocket::{futures, Build, Rocket};
+
+use rocket_db_pools::{sqlx, Connection, Database};
+
+// use chrono;
+
+// use sqlx::types::chrono::{DateTime, Utc, NaiveDateTime};
+
+use sqlx::Acquire;
+
+use futures::stream::TryStreamExt;
+
+#[derive(Database)]
+#[database("sqlx")]
+pub struct Db(sqlx::SqlitePool);
+
+type Result<T, E = rocket::response::Debug<sqlx::Error>> = std::result::Result<T, E>;
+
+// API requests. Should be moved out of DB.
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(crate = "rocket::serde")]
+struct AddLocationRequest {
+    name: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(crate = "rocket::serde")]
+struct AddGameRequest {
+    name: String,
+    abbreviation: String
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(crate = "rocket::serde")]
+struct UpdateGameRequest {
+    name: String,
+    abbreviation: String
+}
+
+// API responses. Should be moved out of DB.
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(crate = "rocket::serde")]
+struct IdResponse {
+    id: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(crate = "rocket::serde")]
+struct LocationResponse {
+    id: i64,
+    name: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(crate = "rocket::serde")]
+struct GameResponse {
+    id: i64,
+    name: String,
+    abbreviation: String,
+    // disabled_at: Option<chrono::DateTime<chrono::Utc>>,
+    reserved: bool,
+    reserved_for_minutes: i64,
+    notes: Vec<NoteResponse>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(crate = "rocket::serde")]
+struct NoteResponse {
+    id: i64,
+    note: String,
+    // created_at: String,
+}
+
+
+// Database entites
+
+#[derive(Debug, Serialize)]
+#[serde(crate = "rocket::serde")]
+struct Location {
+    id: i64,
+    name: String,
+    // created_at: chrono::DateTime<chrono::Utc>,
+    // deleted_at: Option<chrono::DateTime<chrono::Utc>>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(crate = "rocket::serde")]
+struct Game {
+    id: i64,
+    location_id: i64,
+    name: String,
+    abbreviation: String,
+    // disabled_at: Option<chrono::DateTime<chrono::Utc>>,
+    // created_at: chrono::DateTime<chrono::Utc>,
+    // deleted_at: Option<chrono::DateTime<chrono::Utc>>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(crate = "rocket::serde")]
+struct Note {
+    id: i64,
+    game_id: i64,
+    // player_id: i64,
+    note: String,
+    // created_at: chrono::DateTime<chrono::Utc>,
+    // deleted_at: Option<chrono::DateTime<chrono::Utc>>,
+}
+
+#[get("/")]
+async fn get_all_locations(mut db: Connection<Db>) -> Result<Json<Vec<LocationResponse>>> {
+    let mut tx = db.begin().await?;
+
+    // let locations_response = sqlx::query!(
+    //     r#"SELECT id, name
+    //          FROM location
+    //         WHERE deleted_at IS NULL"#)
+    //     .try_map(|r| {
+    //         Ok(LocationResponse {
+    //             id: r.id,
+    //             name: r.name,
+    //         })
+    //     })
+    //     .fetch(&mut tx)
+    //     .try_collect::<Vec<_>>()
+    //     .await?;
+
+    let locations_response = sqlx::query_as!(
+        LocationResponse,
+        r#"SELECT id, name
+             FROM location
+            WHERE deleted_at IS NULL"#)
+        .fetch(&mut tx)
+        .try_collect::<Vec<_>>()
+        .await?;
+
+    tx.commit().await?;
+    Ok(Json(locations_response))
+}
+
+#[get("/<location_id>")]
+async fn get_location_by_id(mut db: Connection<Db>, location_id: i64) -> Result<Json<LocationResponse>> {
+    let mut tx = db.begin().await?;
+
+    // let locaiton = sqlx::query!(
+    //     r#"SELECT id, name, created_at
+    //          FROM location
+    //         WHERE id = ?"#, location_id)
+    //     .try_map(|r| {
+    //         Ok(Location {
+    //             id: r.id,
+    //             name: r.name,
+    //             created_at: r.created_at,
+    //             // deleted_at: r.deleted_at,
+    //         })
+    //     })
+    //     .fetch_one(&mut tx)
+    //     .await?;
+
+    let locations_response = sqlx::query_as!(
+        LocationResponse,
+        r#"SELECT id, name
+             FROM location
+            WHERE deleted_at IS NULL
+              AND id = ?"#,
+        location_id)
+        .fetch_one(&mut tx)
+        .await?;
+
+    tx.commit().await?;
+    // Ok(Json(LocationResponse{
+    //     id: locaiton.id,
+    //     name: locaiton.name,
+    // }))
+    Ok(Json(locations_response))
+}
+
+#[post("/", format = "application/json", data = "<request>")]
+async fn add_location(
+    mut db: Connection<Db>,
+    request: Json<AddLocationRequest>,
+) -> Result<Created<Json<IdResponse>>> {
+    let mut tx = db.begin().await?;
+
+    // There is no support for `RETURNING`.
+    let locaiton_id = sqlx::query!("INSERT INTO location (name) VALUES (?)", request.name)
+        .execute(&mut tx)
+        .await?
+        .last_insert_rowid();
+
+    tx.commit().await?;
+    Ok(Created::new("/").body(Json(IdResponse { id: locaiton_id })))
+}
+
+#[delete("/<location_id>")]
+async fn delete_location_by_id(mut db: Connection<Db>, location_id: i64) -> Result<Option<()>> {
+    // TODO:
+    // - Needs to authorize
+    // - Nedes to drop all related data
+    let mut tx = db.begin().await?;
+
+    let result = sqlx::query!("DELETE FROM location WHERE id = ?", location_id)
+        .execute(&mut tx)
+        .await?;
+
+    tx.commit().await?;
+
+    // Fix this return value, don't use result?
+    Ok((result.rows_affected() == 1).then(|| ()))
+}
+
+#[get("/<location_id>/games")]
+async fn get_games_by_location_id(
+    mut db: Connection<Db>,
+    location_id: i64,
+) -> Result<Json<Vec<GameResponse>>> {
+    let mut tx = db.begin().await?;
+
+    let games = sqlx::query_as!(
+        Game,
+        r#"SELECT id, location_id, name, abbreviation
+             FROM game
+            WHERE deleted_at IS NULL
+              AND location_id = ?
+         ORDER BY abbreviation ASC"#,
+        location_id
+    )
+    // .try_map(|r| {
+    //     Ok(Game {
+    //         id: r.id,
+    //         location_id: r.location_id,
+    //         name: r.name,
+    //         abbreviation: r.abbreviation,
+    //         disabled_at: r.disabled_at,
+    //         // created_at: r.created_at,
+    //         // deleted_at: r.deleted_at,
+    //     })
+    // })
+    .fetch(&mut tx)
+    .try_collect::<Vec<_>>()
+    .await?;
+
+    // Can this query be nested and GameResponse be constructed instead of first
+    // consutrcting Game?
+    let mut game_response: Vec<GameResponse> = Vec::new();
+    for r in games {
+        game_response.push(GameResponse {
+            id: r.id,
+            name: r.name,
+            abbreviation: r.abbreviation,
+            // TODO: Fix me
+            reserved: false,
+            reserved_for_minutes: 0,
+            // END TODO
+            // disabled_at: r.disabled_at,
+            // notes: sqlx::query!(
+            //     r#"SELECT id, note, created_at
+            //          FROM note
+            //         WHERE deleted_at IS NULL
+            //           AND game_id = ?
+            //      ORDER BY created_at DESC"#,
+            //     r.id
+            // )
+            // .try_map(|r| {
+            //     Ok(NoteResponse {
+            //         id: r.id,
+            //         note: r.note,
+            //         created_at: r.created_at,
+            //     })
+            // })
+            notes: sqlx::query_as!(
+                NoteResponse,
+                r#"SELECT id, note
+                     FROM note
+                    WHERE deleted_at IS NULL
+                      AND game_id = ?"#,
+                 //ORDER BY created_at DESC"#,
+                r.id
+            )
+            .fetch(&mut *tx)
+            .try_collect::<Vec<_>>()
+            .await?,
+        })
+    }
+
+    tx.commit().await?;
+
+    Ok(Json(game_response))
+}
+
+#[get("/<location_id>/games/<game_id>")]
+async fn get_game_at_location_by_id(
+    mut db: Connection<Db>,
+    location_id: i64,
+    game_id: i64,
+) -> Result<Json<GameResponse>> {
+    let mut tx = db.begin().await?;
+
+    let game = sqlx::query_as!(
+        Game,
+        r#"SELECT id, location_id, name, abbreviation
+             FROM game
+            WHERE deleted_at IS NULL
+              AND location_id = ?
+              AND id = ?"#,
+        location_id,
+        game_id
+    )
+    // .try_map(|r| {
+    //     Ok(Game {
+    //         id: r.id,
+    //         location_id: r.location_id,
+    //         name: r.name,
+    //         abbreviation: r.abbreviation,
+    //         // created_at: r.created_at,
+    //         disabled_at: r.disabled_at,
+    //         // deleted_at: r.deleted_at,
+    //     })
+    // })
+    .fetch_one(&mut tx)
+    .await?;
+
+    // Can this query be nested and GameResponse be constructed instead of first
+    // consutrcting Game?
+    let notes = sqlx::query_as!(
+        NoteResponse,
+        r#"SELECT id, note
+             FROM note
+            WHERE deleted_at IS NULL
+              AND game_id = ?"#,
+         // ORDER BY created_at DESC"#,
+        game.id
+    )
+    // .try_map(|r| {
+    //     Ok(NoteResponse {
+    //         id: r.id,
+    //         note: r.note,
+    //         created_at: r.created_at,
+    //     })
+    // })
+    .fetch(&mut *tx)
+    .try_collect::<Vec<_>>()
+    .await?;
+
+    tx.commit().await?;
+
+    Ok(Json(GameResponse {
+        id: game.id,
+        name: game.name,
+        abbreviation: game.abbreviation,
+        // disabled_at: game.disabled_at,
+        // TODO: Fix me
+        reserved: false,
+        reserved_for_minutes: 0,
+        // END TODO
+        notes: notes,
+    }))
+}
+
+#[post("/<location_id>/games", format = "application/json", data = "<request>")]
+async fn add_game_at_location(
+    mut db: Connection<Db>,
+    location_id: i64,
+    request: Json<AddGameRequest>,
+) -> Result<Created<Json<IdResponse>>> {
+    let mut tx = db.begin().await?;
+
+    let game_id = sqlx::query!("INSERT INTO game (location_id, name, abbreviation) VALUES (?, ?, ?)",
+        location_id,
+        request.name,
+        request.abbreviation
+    )
+    .execute(&mut tx)
+    .await?
+    .last_insert_rowid();
+
+    tx.commit().await?;
+    Ok(Created::new("/").body(Json(IdResponse { id: game_id })))
+}
+
+#[put("/<location_id>/games/<game_id>", format = "application/json", data = "<request>")]
+async fn update_game_at_location(
+    mut db: Connection<Db>,
+    location_id: i64,
+    game_id: i64,
+    request: Json<UpdateGameRequest>,
+) -> Result<Option<()>> {
+    let mut tx = db.begin().await?;
+
+    let result = sqlx::query!(
+        r#"UPDATE game
+              SET name = ?,
+                  abbreviation = ?
+            WHERE location_id = ?
+              AND id = ?"#,
+        request.name,
+        request.abbreviation,
+        location_id,
+        game_id
+    )
+    .execute(&mut tx)
+    .await?;
+
+    tx.commit().await?;
+
+    // Fix this return value, don't use result?
+    Ok((result.rows_affected() == 1).then(|| ()))
+}
+
+async fn run_migrations(rocket: Rocket<Build>) -> fairing::Result {
+    match Db::fetch(&rocket) {
+        Some(db) => match sqlx::migrate!("./migrations").run(&**db).await {
+            Ok(_) => Ok(rocket),
+            Err(e) => {
+                error!("Failed to initialize SQLx database: {}", e);
+                Err(rocket)
+            }
+        },
+        None => Err(rocket),
+    }
+}
+
+pub fn stage() -> AdHoc {
+    AdHoc::on_ignite("SQLx Stage", |rocket| async {
+        rocket
+            .attach(Db::init())
+            .attach(AdHoc::try_on_ignite("SQLx Migrations", run_migrations))
+            .mount(
+                "/v1/locations",
+                routes![
+                    get_all_locations,
+                    get_location_by_id,
+                    add_location,
+                    delete_location_by_id,
+                    get_games_by_location_id,
+                    get_game_at_location_by_id,
+                    add_game_at_location,
+                    update_game_at_location,
+                ],
+            )
+    })
+}

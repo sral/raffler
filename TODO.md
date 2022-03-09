@@ -1,0 +1,5 @@
+- Refactor and separate API from DB somehow (stick DB in shared state?)
+- Ditch Rocket and go for Actix?!
+- Learn how to deal with session/auth in Rocket
+- Fix return values i.e. correct HTTP statuses
+- Move to postgres since sqlite seems to be pain when it comes to timestamps and NULL values
