@@ -48,6 +48,11 @@ Useful commands for testing service/API locally.
 ##### Delete game at location
 `$ curl -X DELETE http://localhost:8000/v1/locations/1/games/1`
 
+#### Disabled game at location
+`curl http://localhost:8000/v1/locations/1/games/1/disable`
+
+#### Disabled game at location
+`curl http://localhost:8000/v1/locations/1/games/1/enable`
 
 ##### Add note to game at location
 `curl -X POST http://localhost:8000/v1/locations/1/games/1/notes -H 'Content-Type: application/json' -d '{"note":"Autoplunger is infested with cows"}'`

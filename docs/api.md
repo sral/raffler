@@ -193,6 +193,34 @@ Example response:
 ```
 HTTP/1.1 200 OK
 ```
+
+#### Disable game at location
+This marks the game as not being included for random selection, in tournaments, etc.
+
+Example request:
+```
+GET v1/locations/{location_id}/games/{game_id}/disable HTTP/1.1
+```
+
+Example response:
+```
+HTTP/1.1 200 OK
+```
+
+#### Enable game at location
+This marks the game as no longer being disabled (see disabled docs for what that means).
+
+Example request:
+```
+GET v1/locations/{location_id}/games/{game_id}/enable HTTP/1.1
+```
+
+Example response:
+```
+HTTP/1.1 200 OK
+```
+
+
 #### List reservations for game at location
 If we ever want to construct reservation history in some sort of game overview.
 Might not be implemented/required. Could be baked into game object when fetching specific

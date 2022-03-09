@@ -3,9 +3,13 @@
     - Accept formdata instead of json in?
 - Refactor and separate API from DB somehow (stick DB in shared state? Move db implementation and pass transaction in?)
 - Refactor db to re-use common queries etc... remove duplication... maybe... :reverse_shaking_fist:
+    - For a blatant example see disable/enable
 - Learn how to deal with session/auth in Rocket
 - Fix return values i.e. correct HTTP statuses
 - Ditch Rocket and go for Actix?!
 - SQLite seems to be a misstake, move to postgres at some point
     - Dealing with timestamps (sqlx?) are pure pain in sqlite apparently (NULL constraints)
     - Dont' forget to add locks
+- There's currently no validation of actions on deleted entities. Ex you can add games to deleted locations
+- UNIQUE constraint on location name makes no sense if you are re-adding (delete and recreate) the same location
+- Queries have no ORDER BY i.e. ordering needs to be fixed

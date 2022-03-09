@@ -66,7 +66,7 @@ struct GameResponse {
     id: i64,
     name: String,
     abbreviation: String,
-    // disabled_at: Option<chrono::DateTime<chrono::Utc>>,
+    disabled: bool,
     reserved: bool,
     reserved_for_minutes: i64,
     notes: Vec<NoteResponse>,
@@ -87,8 +87,8 @@ struct NoteResponse {
 struct Location {
     id: i64,
     name: String,
+    deleted: bool,
     // created_at: chrono::DateTime<chrono::Utc>,
-    // deleted_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -98,9 +98,9 @@ struct Game {
     location_id: i64,
     name: String,
     abbreviation: String,
-    // disabled_at: Option<chrono::DateTime<chrono::Utc>>,
+    disabled: bool,
+    // deleted: bool,
     // created_at: chrono::DateTime<chrono::Utc>,
-    // deleted_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -110,8 +110,8 @@ struct Note {
     game_id: i64,
     // player_id: i64,
     note: String,
+    // deleted: bool,
     // created_at: chrono::DateTime<chrono::Utc>,
-    // deleted_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 #[get("/")]
@@ -121,7 +121,7 @@ async fn get_all_locations(mut db: Connection<Db>) -> Result<Json<Vec<LocationRe
         LocationResponse,
         r#"SELECT id, name
              FROM location
-            WHERE deleted_at IS NULL"#
+            WHERE deleted IS FALSE"#
     )
     .fetch(&mut tx)
     .try_collect::<Vec<_>>()
@@ -141,7 +141,7 @@ async fn get_location_by_id(
         LocationResponse,
         r#"SELECT id, name
              FROM location
-            WHERE deleted_at IS NULL
+            WHERE deleted IS FALSE
               AND id = ?"#,
         location_id
     )
@@ -170,11 +170,13 @@ async fn add_location(
 #[delete("/<location_id>")]
 async fn delete_location_by_id(mut db: Connection<Db>, location_id: i64) -> Result<Option<()>> {
     // TODO:
-    // - Needs to authorize
-    // - Nedes to drop all related data
+    // - Needs authorization
+    // - Neeeds to potentially mark related data as deleted
     let mut tx = db.begin().await?;
-
-    let result = sqlx::query!("DELETE FROM location WHERE id = ?", location_id)
+    let result = sqlx::query!(
+        r#"UPDATE location
+              SET deleted = TRUE
+            WHERE id = ?"#, location_id)
         .execute(&mut tx)
         .await?;
 
@@ -190,12 +192,11 @@ async fn get_games_by_location_id(
     location_id: i64,
 ) -> Result<Json<Vec<GameResponse>>> {
     let mut tx = db.begin().await?;
-
     let games = sqlx::query_as!(
         Game,
-        r#"SELECT id, location_id, name, abbreviation
+        r#"SELECT id, location_id, name, abbreviation, disabled
              FROM game
-            WHERE deleted_at IS NULL
+            WHERE deleted IS FALSE
               AND location_id = ?
          ORDER BY abbreviation ASC"#,
         location_id
@@ -212,6 +213,7 @@ async fn get_games_by_location_id(
             id: r.id,
             name: r.name,
             abbreviation: r.abbreviation,
+            disabled: r.disabled,
             // TODO: Fix me
             reserved: false,
             reserved_for_minutes: 0,
@@ -220,7 +222,7 @@ async fn get_games_by_location_id(
                 NoteResponse,
                 r#"SELECT id, note
                      FROM note
-                    WHERE deleted_at IS NULL
+                    WHERE deleted IS FALSE
                       AND game_id = ?"#,
                 //ORDER BY created_at DESC"#,
                 r.id
@@ -246,9 +248,9 @@ async fn get_game_at_location_by_id(
 
     let game = sqlx::query_as!(
         Game,
-        r#"SELECT id, location_id, name, abbreviation
+        r#"SELECT id, location_id, name, abbreviation, disabled
              FROM game
-            WHERE deleted_at IS NULL
+            WHERE deleted IS FALSE
               AND location_id = ?
               AND id = ?"#,
         location_id,
@@ -263,7 +265,7 @@ async fn get_game_at_location_by_id(
         NoteResponse,
         r#"SELECT id, note
              FROM note
-            WHERE deleted_at IS NULL
+            WHERE deleted IS FALSE
               AND game_id = ?"#,
         // ORDER BY created_at DESC"#,
         game.id
@@ -278,7 +280,7 @@ async fn get_game_at_location_by_id(
         id: game.id,
         name: game.name,
         abbreviation: game.abbreviation,
-        // disabled_at: game.disabled_at,
+        disabled: game.disabled,
         // TODO: Fix me
         reserved: false,
         reserved_for_minutes: 0,
@@ -347,19 +349,71 @@ async fn update_game_at_location(
     Ok((result.rows_affected() == 1).then(|| ()))
 }
 
+#[get("/<location_id>/games/<game_id>/disable")]
+async fn disable_game_at_location_by_id(
+    mut db: Connection<Db>,
+    location_id: i64,
+    game_id: i64,
+) -> Result<Option<()>> {
+    // - Potentially needs to mark related data as deleted?
+    let mut tx = db.begin().await?;
+
+    let result = sqlx::query!(
+        r#"UPDATE game
+              SET disabled = TRUE
+            WHERE location_id = ?
+              AND id = ?"#,
+        location_id,
+        game_id
+    )
+    .execute(&mut tx)
+    .await?;
+
+    tx.commit().await?;
+
+    // Fix this return value, don't use result?
+    Ok((result.rows_affected() == 1).then(|| ()))
+}
+
+#[get("/<location_id>/games/<game_id>/enable")]
+async fn enable_game_at_location_by_id(
+    mut db: Connection<Db>,
+    location_id: i64,
+    game_id: i64,
+) -> Result<Option<()>> {
+    // - Potentially needs to mark related data as deleted?
+    let mut tx = db.begin().await?;
+
+    let result = sqlx::query!(
+        r#"UPDATE game
+              SET disabled = FALSE
+            WHERE location_id = ?
+              AND id = ?"#,
+        location_id,
+        game_id
+    )
+    .execute(&mut tx)
+    .await?;
+
+    tx.commit().await?;
+
+    // Fix this return value, don't use result?
+    Ok((result.rows_affected() == 1).then(|| ()))
+}
+
+
 #[delete("/<location_id>/games/<game_id>")]
 async fn delete_game_at_location_by_id(
     mut db: Connection<Db>,
     location_id: i64,
     game_id: i64,
 ) -> Result<Option<()>> {
-    // TODO:
-    // - Needs to authorize
-    // - Nedes to mark all related data as deleted
+    // - Potentially needs to mark related data as deleted?
     let mut tx = db.begin().await?;
 
     let result = sqlx::query!(
-        r#"DELETE FROM game
+        r#"UPDATE game
+              SET deleted = TRUE
             WHERE location_id = ?
               AND id = ?"#,
         location_id,
@@ -416,7 +470,8 @@ async fn delete_note_for_game_by_id(
     let mut tx = db.begin().await?;
 
     let result = sqlx::query!(
-        r#"DELETE FROM note
+        r#"UPDATE note
+              SET deleted = TRUE
             WHERE game_id = ?
               AND id = ?"#,
         game_id,
@@ -460,6 +515,8 @@ pub fn stage() -> AdHoc {
                     get_game_at_location_by_id,
                     add_game_at_location,
                     update_game_at_location,
+                    disable_game_at_location_by_id,
+                    enable_game_at_location_by_id,
                     delete_game_at_location_by_id,
                     add_note_for_game_at_location,
                     delete_note_for_game_by_id,

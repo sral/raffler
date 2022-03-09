@@ -2,7 +2,8 @@ CREATE TABLE IF NOT EXISTS location (
   id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
   name TEXT NOT NULL UNIQUE,
   created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
-  deleted_at TIMESTAMP WITHOUT TIME ZONE
+  -- This really should be timestamp(s) but sqlite+sqlx currently says NO! :reverse_shaking_fist:
+  deleted BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 CREATE TABLE IF NOT EXISTS game (
@@ -10,9 +11,10 @@ CREATE TABLE IF NOT EXISTS game (
   location_id INTEGER REFERENCES location(id) NOT NULL,
   name TEXT NOT NULL,
   abbreviation TEXT NOT NULL,
-  disabled_at TIMESTAMP WITHOUT TIME ZONE,
-  created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
-  deleted_at TIMESTAMP WITHOUT TIME ZONE
+  -- This really should be timestamp(s) but sqlite+sqlx currently says NO! :reverse_shaking_fist:
+  disabled BOOLEAN NOT NULL DEFAULT FALSE,
+  deleted BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS note (
@@ -21,7 +23,7 @@ CREATE TABLE IF NOT EXISTS note (
   player_id INTEGER REFERENCES player(id),
   note TEXT NOT NULL,
   created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
-  deleted_at TIMESTAMP WITHOUT TIME ZONE
+  deleted BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 CREATE TABLE IF NOT EXISTS reservation (
@@ -38,7 +40,8 @@ CREATE TABLE IF NOT EXISTS player (
     initials TEXT NOT NULL CHECK (length(name) <= 3),
     name TEXT NOT NULL,
     surname TEXT NOT NULL,
-    disabled_at TIMESTAMP WITHOUT TIME ZONE,
-    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    deleted_at TIMESTAMP WITHOUT TIME ZONE
+    -- This really should be timestamp(s) but sqlite+sqlx currently says NO! :reverse_shaking_fist:
+    disabled BOOLEAN NOT NULL DEFAULT FALSE,
+    deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
