@@ -1,5 +1,11 @@
-- Refactor and separate API from DB somehow (stick DB in shared state?)
-- Ditch Rocket and go for Actix?!
+- API needs to be revisted once we build frontend
+    - Inconsistent responses (always echo state?)
+    - Accept formdata instead of json in?
+- Refactor and separate API from DB somehow (stick DB in shared state? Move db implementation and pass transaction in?)
+- Refactor db to re-use common queries etc... remove duplication... maybe... :reverse_shaking_fist:
 - Learn how to deal with session/auth in Rocket
 - Fix return values i.e. correct HTTP statuses
-- Move to postgres since sqlite seems to be pain when it comes to timestamps and NULL values
+- Ditch Rocket and go for Actix?!
+- SQLite seems to be a misstake, move to postgres at some point
+    - Dealing with timestamps (sqlx?) are pure pain in sqlite apparently (NULL constraints)
+    - Dont' forget to add locks

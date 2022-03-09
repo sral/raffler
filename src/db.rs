@@ -7,8 +7,6 @@ use rocket_db_pools::{sqlx, Connection, Database};
 
 // use chrono;
 
-// use sqlx::types::chrono::{DateTime, Utc, NaiveDateTime};
-
 use sqlx::Acquire;
 
 use futures::stream::TryStreamExt;
@@ -31,14 +29,14 @@ struct AddLocationRequest {
 #[serde(crate = "rocket::serde")]
 struct AddGameRequest {
     name: String,
-    abbreviation: String
+    abbreviation: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(crate = "rocket::serde")]
 struct UpdateGameRequest {
     name: String,
-    abbreviation: String
+    abbreviation: String,
 }
 
 // API responses. Should be moved out of DB.
@@ -75,7 +73,6 @@ struct NoteResponse {
     note: String,
     // created_at: String,
 }
-
 
 // Database entites
 
@@ -114,62 +111,36 @@ struct Note {
 #[get("/")]
 async fn get_all_locations(mut db: Connection<Db>) -> Result<Json<Vec<LocationResponse>>> {
     let mut tx = db.begin().await?;
-
-    // let locations_response = sqlx::query!(
-    //     r#"SELECT id, name
-    //          FROM location
-    //         WHERE deleted_at IS NULL"#)
-    //     .try_map(|r| {
-    //         Ok(LocationResponse {
-    //             id: r.id,
-    //             name: r.name,
-    //         })
-    //     })
-    //     .fetch(&mut tx)
-    //     .try_collect::<Vec<_>>()
-    //     .await?;
-
     let locations_response = sqlx::query_as!(
         LocationResponse,
         r#"SELECT id, name
              FROM location
-            WHERE deleted_at IS NULL"#)
-        .fetch(&mut tx)
-        .try_collect::<Vec<_>>()
-        .await?;
+            WHERE deleted_at IS NULL"#
+    )
+    .fetch(&mut tx)
+    .try_collect::<Vec<_>>()
+    .await?;
 
     tx.commit().await?;
     Ok(Json(locations_response))
 }
 
 #[get("/<location_id>")]
-async fn get_location_by_id(mut db: Connection<Db>, location_id: i64) -> Result<Json<LocationResponse>> {
+async fn get_location_by_id(
+    mut db: Connection<Db>,
+    location_id: i64,
+) -> Result<Json<LocationResponse>> {
     let mut tx = db.begin().await?;
-
-    // let locaiton = sqlx::query!(
-    //     r#"SELECT id, name, created_at
-    //          FROM location
-    //         WHERE id = ?"#, location_id)
-    //     .try_map(|r| {
-    //         Ok(Location {
-    //             id: r.id,
-    //             name: r.name,
-    //             created_at: r.created_at,
-    //             // deleted_at: r.deleted_at,
-    //         })
-    //     })
-    //     .fetch_one(&mut tx)
-    //     .await?;
-
     let locations_response = sqlx::query_as!(
         LocationResponse,
         r#"SELECT id, name
              FROM location
             WHERE deleted_at IS NULL
               AND id = ?"#,
-        location_id)
-        .fetch_one(&mut tx)
-        .await?;
+        location_id
+    )
+    .fetch_one(&mut tx)
+    .await?;
 
     tx.commit().await?;
     // Ok(Json(LocationResponse{
@@ -185,8 +156,6 @@ async fn add_location(
     request: Json<AddLocationRequest>,
 ) -> Result<Created<Json<IdResponse>>> {
     let mut tx = db.begin().await?;
-
-    // There is no support for `RETURNING`.
     let locaiton_id = sqlx::query!("INSERT INTO location (name) VALUES (?)", request.name)
         .execute(&mut tx)
         .await?
@@ -229,17 +198,6 @@ async fn get_games_by_location_id(
          ORDER BY abbreviation ASC"#,
         location_id
     )
-    // .try_map(|r| {
-    //     Ok(Game {
-    //         id: r.id,
-    //         location_id: r.location_id,
-    //         name: r.name,
-    //         abbreviation: r.abbreviation,
-    //         disabled_at: r.disabled_at,
-    //         // created_at: r.created_at,
-    //         // deleted_at: r.deleted_at,
-    //     })
-    // })
     .fetch(&mut tx)
     .try_collect::<Vec<_>>()
     .await?;
@@ -256,29 +214,13 @@ async fn get_games_by_location_id(
             reserved: false,
             reserved_for_minutes: 0,
             // END TODO
-            // disabled_at: r.disabled_at,
-            // notes: sqlx::query!(
-            //     r#"SELECT id, note, created_at
-            //          FROM note
-            //         WHERE deleted_at IS NULL
-            //           AND game_id = ?
-            //      ORDER BY created_at DESC"#,
-            //     r.id
-            // )
-            // .try_map(|r| {
-            //     Ok(NoteResponse {
-            //         id: r.id,
-            //         note: r.note,
-            //         created_at: r.created_at,
-            //     })
-            // })
             notes: sqlx::query_as!(
                 NoteResponse,
                 r#"SELECT id, note
                      FROM note
                     WHERE deleted_at IS NULL
                       AND game_id = ?"#,
-                 //ORDER BY created_at DESC"#,
+                //ORDER BY created_at DESC"#,
                 r.id
             )
             .fetch(&mut *tx)
@@ -310,17 +252,6 @@ async fn get_game_at_location_by_id(
         location_id,
         game_id
     )
-    // .try_map(|r| {
-    //     Ok(Game {
-    //         id: r.id,
-    //         location_id: r.location_id,
-    //         name: r.name,
-    //         abbreviation: r.abbreviation,
-    //         // created_at: r.created_at,
-    //         disabled_at: r.disabled_at,
-    //         // deleted_at: r.deleted_at,
-    //     })
-    // })
     .fetch_one(&mut tx)
     .await?;
 
@@ -332,16 +263,9 @@ async fn get_game_at_location_by_id(
              FROM note
             WHERE deleted_at IS NULL
               AND game_id = ?"#,
-         // ORDER BY created_at DESC"#,
+        // ORDER BY created_at DESC"#,
         game.id
     )
-    // .try_map(|r| {
-    //     Ok(NoteResponse {
-    //         id: r.id,
-    //         note: r.note,
-    //         created_at: r.created_at,
-    //     })
-    // })
     .fetch(&mut *tx)
     .try_collect::<Vec<_>>()
     .await?;
@@ -361,7 +285,11 @@ async fn get_game_at_location_by_id(
     }))
 }
 
-#[post("/<location_id>/games", format = "application/json", data = "<request>")]
+#[post(
+    "/<location_id>/games",
+    format = "application/json",
+    data = "<request>"
+)]
 async fn add_game_at_location(
     mut db: Connection<Db>,
     location_id: i64,
@@ -369,7 +297,9 @@ async fn add_game_at_location(
 ) -> Result<Created<Json<IdResponse>>> {
     let mut tx = db.begin().await?;
 
-    let game_id = sqlx::query!("INSERT INTO game (location_id, name, abbreviation) VALUES (?, ?, ?)",
+    let game_id = sqlx::query!(
+        r#"INSERT INTO game (location_id, name, abbreviation)
+                VALUES (?, ?, ?)"#,
         location_id,
         request.name,
         request.abbreviation
@@ -382,7 +312,11 @@ async fn add_game_at_location(
     Ok(Created::new("/").body(Json(IdResponse { id: game_id })))
 }
 
-#[put("/<location_id>/games/<game_id>", format = "application/json", data = "<request>")]
+#[put(
+    "/<location_id>/games/<game_id>",
+    format = "application/json",
+    data = "<request>"
+)]
 async fn update_game_at_location(
     mut db: Connection<Db>,
     location_id: i64,
@@ -399,6 +333,33 @@ async fn update_game_at_location(
               AND id = ?"#,
         request.name,
         request.abbreviation,
+        location_id,
+        game_id
+    )
+    .execute(&mut tx)
+    .await?;
+
+    tx.commit().await?;
+
+    // Fix this return value, don't use result?
+    Ok((result.rows_affected() == 1).then(|| ()))
+}
+
+#[delete("/<location_id>/games/<game_id>")]
+async fn delete_game_at_location_by_id(
+    mut db: Connection<Db>,
+    location_id: i64,
+    game_id: i64,
+) -> Result<Option<()>> {
+    // TODO:
+    // - Needs to authorize
+    // - Nedes to mark all related data as deleted
+    let mut tx = db.begin().await?;
+
+    let result = sqlx::query!(
+        r#"DELETE FROM game
+            WHERE location_id = ?
+              AND id = ?"#,
         location_id,
         game_id
     )
@@ -428,7 +389,7 @@ pub fn stage() -> AdHoc {
     AdHoc::on_ignite("SQLx Stage", |rocket| async {
         rocket
             .attach(Db::init())
-            .attach(AdHoc::try_on_ignite("SQLx Migrations", run_migrations))
+            .attach(AdHoc::try_on_ignite("SQLx migrations", run_migrations))
             .mount(
                 "/v1/locations",
                 routes![
@@ -440,6 +401,7 @@ pub fn stage() -> AdHoc {
                     get_game_at_location_by_id,
                     add_game_at_location,
                     update_game_at_location,
+                    delete_game_at_location_by_id,
                 ],
             )
     })

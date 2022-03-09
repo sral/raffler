@@ -1,13 +1,49 @@
-cargo install sqlx-cli
-cargo sqlx prepare
+### Raffler
 
+Nothing to see here yet. Move along.
 
-sqlx db create
-sqlx database create
-sqlx migrate add <NAME>
-sqlx migrate run
+#### Building/running
+Might require:
+`$ export DATABASE_URL="sqlite:raffler.sqlite"`
 
-
-$ export DATABASE_URL="sqlite:raffler.sqlite"
+To recreate db with sqlx-cli installed:
+```
+$ sqlx database drop
 $ sqlx database create
 $ sqlx migrate run
+```
+
+To build:
+
+`$ cargo build`
+
+To build and run:
+
+`$ cargo run`
+
+#### Testing
+Useful commands for testing service/API locally.
+
+##### Add location
+`$ curl -X POST http://localhost:8000/v1/locations -H 'Content-Type: application/json' -d '{"name":"Spola Tilted"}`
+
+##### List locations
+`$ curl http://localhost:8000/v1/locations`
+
+##### Delete location
+`$ curl -X DELETE http://localhost:8000/v1/locations/1`
+
+##### List games at location
+`$ curl http://localhost:8000/v1/locations/1/games`
+
+##### Add game at location
+`$ curl -X POST http://localhost:8000/v1/locations/1/games -H 'Content-Type: application/json' -d '{"name":"Attack From Mars", "abbreviation": "AFM"}'`
+
+##### List information for game at location
+`$ curl http://localhost:8000/v1/locations/1/games/1`
+
+##### Update information for game at location
+`$ curl -X PUT http://localhost:8000/v1/locations/1/games/1 -H 'C1ntent-Type: application/json' -d '{"name":"Attack From Lars", "abbreviation": "AFL"}'`
+
+##### Delete game at location
+`$ curl -X DELETE http://localhost:8000/v1/locations/1/games/1`
