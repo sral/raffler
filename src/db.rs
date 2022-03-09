@@ -143,10 +143,6 @@ async fn get_location_by_id(
     .await?;
 
     tx.commit().await?;
-    // Ok(Json(LocationResponse{
-    //     id: locaiton.id,
-    //     name: locaiton.name,
-    // }))
     Ok(Json(locations_response))
 }
 
