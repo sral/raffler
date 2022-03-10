@@ -21,12 +21,6 @@ type Result<T, E = rocket::response::Debug<sqlx::Error>> = std::result::Result<T
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(crate = "rocket::serde")]
-struct AddLocationRequest {
-    name: String,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(crate = "rocket::serde")]
 struct AddGameRequest {
     name: String,
     abbreviation: String,
@@ -123,6 +117,42 @@ impl Location {
         tx.commit().await?;
         Ok(location)
     }
+
+    pub async fn add_location(mut db: Connection<Db>, name: String) -> Result<Location> {
+        let mut tx = db.begin().await?;
+        let location = sqlx::query_as!(
+            Location,
+            "INSERT INTO location (name)
+                  VALUES ($1)
+               RETURNING *",
+            name
+        )
+        .fetch_one(&mut tx)
+        .await?;
+
+        tx.commit().await?;
+
+        Ok(location)
+    }
+
+    pub async fn delete_by_id(mut db: Connection<Db>, id: i64) -> Result<Location> {
+        let mut tx = db.begin().await?;
+
+        let location = sqlx::query_as!(
+            Location,
+            r#"UPDATE location
+                  SET deleted_at = now()
+                WHERE id = $1
+            RETURNING *"#,
+            id
+        )
+        .fetch_one(&mut tx)
+        .await?;
+
+        tx.commit().await?;
+
+        Ok(location)
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -148,48 +178,6 @@ struct Note {
     note: String,
     deleted_at: Option<NaiveDateTime>,
     created_at: NaiveDateTime,
-}
-
-#[post("/", format = "application/json", data = "<request>")]
-async fn add_location(
-    mut db: Connection<Db>,
-    request: Json<AddLocationRequest>,
-) -> Result<Created<Json<IdResponse>>> {
-    let mut tx = db.begin().await?;
-    let location = sqlx::query_as!(
-        Location,
-        "INSERT INTO location (name)
-              VALUES ($1)
-           RETURNING *",
-        request.name
-    )
-    .fetch_one(&mut tx)
-    .await?;
-
-    tx.commit().await?;
-    Ok(Created::new("/").body(Json(IdResponse { id: location.id })))
-}
-
-#[delete("/<location_id>")]
-async fn delete_location_by_id(mut db: Connection<Db>, location_id: i64) -> Result<Option<()>> {
-    // TODO:
-    // - Needs authorization
-    // - Neeeds to potentially mark related data as deleted
-    let mut tx = db.begin().await?;
-
-    let result = sqlx::query!(
-        r#"UPDATE location
-              SET deleted_at = now()
-            WHERE id = $1"#,
-        location_id
-    )
-    .execute(&mut tx)
-    .await?;
-
-    tx.commit().await?;
-
-    // Fix this return value, don't use result?
-    Ok((result.rows_affected() == 1).then(|| ()))
 }
 
 #[get("/<location_id>/games")]
@@ -560,8 +548,6 @@ pub fn stage() -> AdHoc {
             .mount(
                 "/v1/locations",
                 routes![
-                    add_location,
-                    delete_location_by_id,
                     get_games_by_location_id,
                     get_game_at_location_by_id,
                     add_game_at_location,
