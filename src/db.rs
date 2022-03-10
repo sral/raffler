@@ -233,7 +233,7 @@ async fn get_games_by_location_id(
                 r#"SELECT id, note
                      FROM note
                     WHERE deleted_at IS NULL
-                      AND game_id = $1,
+                      AND game_id = $1
                  ORDER BY created_at ASC"#,
                 r.id
             )
