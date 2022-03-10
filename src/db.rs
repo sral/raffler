@@ -84,11 +84,28 @@ struct NoteResponse {
 
 #[derive(Debug, Serialize)]
 #[serde(crate = "rocket::serde")]
-struct Location {
-    id: i64,
-    name: String,
+pub struct Location {
+    pub id: i64,
+    pub name: String,
     deleted_at: Option<NaiveDateTime>,
     created_at: NaiveDateTime,
+}
+
+impl Location {
+    pub async fn find_all(mut db: Connection<Db>) -> Result<Vec<Location>> {
+        let mut tx = db.begin().await?;
+        let locations = sqlx::query_as!(
+            Location,
+            r#"SELECT * FROM location
+                WHERE deleted_at IS NULL"#
+        )
+        .fetch(&mut tx)
+        .try_collect::<Vec<_>>()
+        .await?;
+
+        tx.commit().await?;
+        Ok(locations)
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -114,23 +131,6 @@ struct Note {
     note: String,
     deleted_at: Option<NaiveDateTime>,
     created_at: NaiveDateTime,
-}
-
-#[get("/")]
-async fn get_all_locations(mut db: Connection<Db>) -> Result<Json<Vec<LocationResponse>>> {
-    let mut tx = db.begin().await?;
-    let locations_response = sqlx::query_as!(
-        LocationResponse,
-        r#"SELECT id, name
-             FROM location
-            WHERE deleted_at IS NULL"#
-    )
-    .fetch(&mut tx)
-    .try_collect::<Vec<_>>()
-    .await?;
-
-    tx.commit().await?;
-    Ok(Json(locations_response))
 }
 
 #[get("/<location_id>")]
@@ -564,7 +564,6 @@ pub fn stage() -> AdHoc {
             .mount(
                 "/v1/locations",
                 routes![
-                    get_all_locations,
                     get_location_by_id,
                     add_location,
                     delete_location_by_id,
