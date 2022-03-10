@@ -106,6 +106,23 @@ impl Location {
         tx.commit().await?;
         Ok(locations)
     }
+
+    pub async fn find_by_id(mut db: Connection<Db>, id: i64) -> Result<Location> {
+        let mut tx = db.begin().await?;
+        let location = sqlx::query_as!(
+            Location,
+            r#"SELECT *
+                 FROM location
+                WHERE deleted_at IS NULL
+                  AND id = $1"#,
+            id
+        )
+        .fetch_one(&mut tx)
+        .await?;
+
+        tx.commit().await?;
+        Ok(location)
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -131,27 +148,6 @@ struct Note {
     note: String,
     deleted_at: Option<NaiveDateTime>,
     created_at: NaiveDateTime,
-}
-
-#[get("/<location_id>")]
-async fn get_location_by_id(
-    mut db: Connection<Db>,
-    location_id: i64,
-) -> Result<Json<LocationResponse>> {
-    let mut tx = db.begin().await?;
-    let locations_response = sqlx::query_as!(
-        LocationResponse,
-        r#"SELECT id, name
-             FROM location
-            WHERE deleted_at IS NULL
-              AND id = $1"#,
-        location_id
-    )
-    .fetch_one(&mut tx)
-    .await?;
-
-    tx.commit().await?;
-    Ok(Json(locations_response))
 }
 
 #[post("/", format = "application/json", data = "<request>")]
@@ -564,7 +560,6 @@ pub fn stage() -> AdHoc {
             .mount(
                 "/v1/locations",
                 routes![
-                    get_location_by_id,
                     add_location,
                     delete_location_by_id,
                     get_games_by_location_id,

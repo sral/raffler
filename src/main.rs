@@ -31,10 +31,26 @@ async fn get_all_locations(db: Connection<db::Db>) -> Result<Json<Vec<LocationRe
     Ok(Json(resp))
 }
 
+#[get("/<location_id>")]
+async fn get_location_by_id(
+    db: Connection<db::Db>,
+    location_id: i64,
+) -> Result<Json<LocationResponse>> {
+    let location = db::Location::find_by_id(db, location_id).await?;
+
+    Ok(Json(LocationResponse {
+        id: location.id,
+        name: location.name,
+    }))
+}
+
 #[launch]
 fn rocket() -> _ {
     rocket::build()
         .attach(db::stage())
         .mount("/", FileServer::from(relative!("static")))
-        .mount("/v1/locations", routes![get_all_locations,])
+        .mount(
+            "/v1/locations",
+            routes![get_all_locations, get_location_by_id],
+        )
 }
