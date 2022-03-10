@@ -199,7 +199,7 @@ This marks the game as not being included for random selection, in tournaments, 
 
 Example request:
 ```
-GET v1/locations/{location_id}/games/{game_id}/disable HTTP/1.1
+POST v1/locations/{location_id}/games/{game_id}/disable HTTP/1.1
 ```
 
 Example response:
@@ -212,7 +212,7 @@ This marks the game as no longer being disabled (see disabled docs for what that
 
 Example request:
 ```
-GET v1/locations/{location_id}/games/{game_id}/enable HTTP/1.1
+POST v1/locations/{location_id}/games/{game_id}/enable HTTP/1.1
 ```
 
 Example response:
@@ -254,7 +254,7 @@ Content-Type: application/json
 
 Example request:
 ```
-POST v1/locations/{location_id}/games/reserve HTTP/1.1
+POST v1/locations/{location_id}/games/reservations HTTP/1.1
 ```
 
 Example response:
@@ -281,7 +281,7 @@ Content-Type: application/json
 
 Example request:
 ```
-POSTT v1/locations/{location_id}/games/{game_id}/reserve HTTP/1.1
+POST v1/locations/{location_id}/games/{game_id}/reservations HTTP/1.1
 ```
 
 Example response:
@@ -292,7 +292,7 @@ HTTP/1.1 200 OK
 
 Example request:
 ```
-DELETE v1/locations/{location_id}/games/{game_id}/reservation HTTP/1.1
+DELETE v1/locations/{location_id}/games/{game_id}/reservations HTTP/1.1
 ```
 
 Example response:
@@ -403,7 +403,7 @@ Content-Type: application/json
 ### Logout player
 Example request:
 ```
-GET v1/players/{player_id}/logout HTTP/1.1
+DELETE v1/players/{player_id}/login HTTP/1.1
 Content-Type: application/json
 
 ```
