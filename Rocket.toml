@@ -1,2 +1,2 @@
 [global.databases]
-sqlx = { url = "raffler.sqlite" }
+sqlx = { url = "postgres://@localhost/raffler"}

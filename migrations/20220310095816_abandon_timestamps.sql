@@ -1,2 +1,0 @@
-DROP TABLE reservation;
-ALTER TABLE game ADD column reserved BOOLEAN NOT NULL DEFAULT FALSE;

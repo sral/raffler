@@ -4,7 +4,7 @@ Nothing to see here yet. Move along.
 
 #### Building/running
 Might require:
-`$ export DATABASE_URL="sqlite:raffler.sqlite"`
+`$ export DATABASE_URL="postgres://localhost/raffler"`
 
 To recreate db with sqlx-cli installed:
 ```

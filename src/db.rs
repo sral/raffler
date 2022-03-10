@@ -5,7 +5,7 @@ use rocket::{futures, Build, Rocket};
 
 use rocket_db_pools::{sqlx, Connection, Database};
 
-// use chrono::prelude::*;
+use chrono::prelude::*;
 
 use sqlx::Acquire;
 
@@ -13,7 +13,7 @@ use futures::stream::TryStreamExt;
 
 #[derive(Database)]
 #[database("sqlx")]
-pub struct Db(sqlx::SqlitePool);
+pub struct Db(sqlx::PgPool);
 
 type Result<T, E = rocket::response::Debug<sqlx::Error>> = std::result::Result<T, E>;
 
@@ -66,8 +66,8 @@ struct GameResponse {
     id: i64,
     name: String,
     abbreviation: String,
-    disabled: bool,
-    reserved: bool,
+    disabled_at: Option<NaiveDateTime>,
+    reserved_at: Option<NaiveDateTime>,
     reserved_for_minutes: i64,
     notes: Vec<NoteResponse>,
 }
@@ -87,8 +87,8 @@ struct NoteResponse {
 struct Location {
     id: i64,
     name: String,
-    deleted: bool,
-    // created_at: chrono::DateTime<chrono::Utc>,
+    deleted_at: Option<NaiveDateTime>,
+    created_at: NaiveDateTime,
 }
 
 #[derive(Debug, Serialize)]
@@ -98,10 +98,10 @@ struct Game {
     location_id: i64,
     name: String,
     abbreviation: String,
-    disabled: bool,
-    reserved: bool,
-    // deleted: bool,
-    // created_at: chrono::DateTime<chrono::Utc>,
+    disabled_at: Option<NaiveDateTime>,
+    reserved_at: Option<NaiveDateTime>,
+    deleted_at: Option<NaiveDateTime>,
+    created_at: NaiveDateTime,
 }
 
 #[derive(Debug, Serialize)]
@@ -109,10 +109,11 @@ struct Game {
 struct Note {
     id: i64,
     game_id: i64,
-    // player_id: i64,
+    // Nullable for now, fix once we add players to the mix.
+    player_id: Option<i64>,
     note: String,
-    // deleted: bool,
-    // created_at: chrono::DateTime<chrono::Utc>,
+    deleted_at: Option<NaiveDateTime>,
+    created_at: NaiveDateTime,
 }
 
 #[get("/")]
@@ -122,7 +123,7 @@ async fn get_all_locations(mut db: Connection<Db>) -> Result<Json<Vec<LocationRe
         LocationResponse,
         r#"SELECT id, name
              FROM location
-            WHERE deleted IS FALSE"#
+            WHERE deleted_at IS NULL"#
     )
     .fetch(&mut tx)
     .try_collect::<Vec<_>>()
@@ -142,8 +143,8 @@ async fn get_location_by_id(
         LocationResponse,
         r#"SELECT id, name
              FROM location
-            WHERE deleted IS FALSE
-              AND id = ?"#,
+            WHERE deleted_at IS NULL
+              AND id = $1"#,
         location_id
     )
     .fetch_one(&mut tx)
@@ -159,13 +160,18 @@ async fn add_location(
     request: Json<AddLocationRequest>,
 ) -> Result<Created<Json<IdResponse>>> {
     let mut tx = db.begin().await?;
-    let locaiton_id = sqlx::query!("INSERT INTO location (name) VALUES (?)", request.name)
-        .execute(&mut tx)
-        .await?
-        .last_insert_rowid();
+    let location = sqlx::query_as!(
+        Location,
+        "INSERT INTO location (name)
+              VALUES ($1)
+           RETURNING *",
+        request.name
+    )
+    .fetch_one(&mut tx)
+    .await?;
 
     tx.commit().await?;
-    Ok(Created::new("/").body(Json(IdResponse { id: locaiton_id })))
+    Ok(Created::new("/").body(Json(IdResponse { id: location.id })))
 }
 
 #[delete("/<location_id>")]
@@ -174,10 +180,11 @@ async fn delete_location_by_id(mut db: Connection<Db>, location_id: i64) -> Resu
     // - Needs authorization
     // - Neeeds to potentially mark related data as deleted
     let mut tx = db.begin().await?;
+
     let result = sqlx::query!(
         r#"UPDATE location
-              SET deleted = TRUE
-            WHERE id = ?"#,
+              SET deleted_at = now()
+            WHERE id = $1"#,
         location_id
     )
     .execute(&mut tx)
@@ -197,10 +204,10 @@ async fn get_games_by_location_id(
     let mut tx = db.begin().await?;
     let games = sqlx::query_as!(
         Game,
-        r#"SELECT id, location_id, name, abbreviation, disabled, reserved
+        r#"SELECT *
              FROM game
-            WHERE deleted IS FALSE
-              AND location_id = ?
+            WHERE deleted_at IS NULL
+              AND location_id = $1
          ORDER BY abbreviation ASC"#,
         location_id
     )
@@ -216,18 +223,18 @@ async fn get_games_by_location_id(
             id: r.id,
             name: r.name,
             abbreviation: r.abbreviation,
-            disabled: r.disabled,
+            disabled_at: r.disabled_at,
             // TODO: Fix me
-            reserved: r.reserved,
+            reserved_at: r.reserved_at,
             reserved_for_minutes: 0,
             // END TODO
             notes: sqlx::query_as!(
                 NoteResponse,
                 r#"SELECT id, note
                      FROM note
-                    WHERE deleted IS FALSE
-                      AND game_id = ?"#,
-                //ORDER BY created_at DESC"#,
+                    WHERE deleted_at IS NULL
+                      AND game_id = $1,
+                 ORDER BY created_at ASC"#,
                 r.id
             )
             .fetch(&mut *tx)
@@ -251,27 +258,24 @@ async fn get_game_at_location_by_id(
 
     let game = sqlx::query_as!(
         Game,
-        r#"SELECT id, location_id, name, abbreviation, disabled, reserved
+        r#"SELECT *
              FROM game
-            WHERE deleted IS FALSE
-              AND location_id = ?
-              AND id = ?"#,
+            WHERE deleted_at IS NULL
+              AND location_id = $1
+              AND id = $2"#,
         location_id,
         game_id
     )
     .fetch_one(&mut tx)
     .await?;
 
-    // Can this query be nested and GameResponse be constructed instead of first
-    // consutrcting Game?
     let note_response = sqlx::query_as!(
         NoteResponse,
         r#"SELECT id, note
              FROM note
-            WHERE deleted IS FALSE
-              AND game_id = ?
-         ORDER BY id ASC"#,
-        // ORDER BY created_at DESC"#,
+            WHERE deleted_at IS NULL
+              AND game_id = $1
+         ORDER BY created_at ASC"#,
         game.id
     )
     .fetch(&mut *tx)
@@ -284,8 +288,8 @@ async fn get_game_at_location_by_id(
         id: game.id,
         name: game.name,
         abbreviation: game.abbreviation,
-        disabled: game.disabled,
-        reserved: game.reserved,
+        disabled_at: game.disabled_at,
+        reserved_at: game.reserved_at,
         // TODO: Fix me.
         reserved_for_minutes: 0,
         // END TODO
@@ -305,19 +309,20 @@ async fn add_game_at_location(
 ) -> Result<Created<Json<IdResponse>>> {
     let mut tx = db.begin().await?;
 
-    let game_id = sqlx::query!(
+    let game = sqlx::query_as!(
+        Game,
         r#"INSERT INTO game (location_id, name, abbreviation)
-                VALUES (?, ?, ?)"#,
+                VALUES ($1, $2, $3)
+             RETURNING *"#,
         location_id,
         request.name,
         request.abbreviation
     )
-    .execute(&mut tx)
-    .await?
-    .last_insert_rowid();
+    .fetch_one(&mut tx)
+    .await?;
 
     tx.commit().await?;
-    Ok(Created::new("/").body(Json(IdResponse { id: game_id })))
+    Ok(Created::new("/").body(Json(IdResponse { id: game.id })))
 }
 
 #[put(
@@ -335,10 +340,10 @@ async fn update_game_at_location(
 
     let result = sqlx::query!(
         r#"UPDATE game
-              SET name = ?,
-                  abbreviation = ?
-            WHERE location_id = ?
-              AND id = ?"#,
+              SET name = $1,
+                  abbreviation = $2
+            WHERE location_id = $3
+              AND id = $4"#,
         request.name,
         request.abbreviation,
         location_id,
@@ -364,9 +369,9 @@ async fn disable_game_at_location_by_id(
 
     let result = sqlx::query!(
         r#"UPDATE game
-              SET disabled = TRUE
-            WHERE location_id = ?
-              AND id = ?"#,
+              SET disabled_at = now()
+            WHERE location_id = $1
+              AND id = $2"#,
         location_id,
         game_id
     )
@@ -390,9 +395,9 @@ async fn enable_game_at_location_by_id(
 
     let result = sqlx::query!(
         r#"UPDATE game
-              SET disabled = FALSE
-            WHERE location_id = ?
-              AND id = ?"#,
+              SET disabled_at = NULL
+            WHERE location_id = $1
+              AND id = $2"#,
         location_id,
         game_id
     )
@@ -416,9 +421,9 @@ async fn delete_game_at_location_by_id(
 
     let result = sqlx::query!(
         r#"UPDATE game
-              SET deleted = TRUE
-            WHERE location_id = ?
-              AND id = ?"#,
+              SET deleted_at = now()
+            WHERE location_id = $1
+              AND id = $2"#,
         location_id,
         game_id
     )
@@ -445,18 +450,19 @@ async fn add_note_for_game_at_location(
 
     // TODO: PlayerId needs to come from authorization/sessions.
 
-    let game_id = sqlx::query!(
-        r#"INSERT INTO note (note, game_id )
-                VALUES (?, ?)"#,
+    let note = sqlx::query_as!(
+        Note,
+        r#"INSERT INTO note (note, game_id)
+                VALUES ($1, $2)
+             RETURNING *"#,
         request.note,
         game_id,
     )
-    .execute(&mut tx)
-    .await?
-    .last_insert_rowid();
+    .fetch_one(&mut tx)
+    .await?;
 
     tx.commit().await?;
-    Ok(Created::new("/").body(Json(IdResponse { id: game_id })))
+    Ok(Created::new("/").body(Json(IdResponse { id: note.id })))
 }
 
 #[delete("/<_>/games/<game_id>/notes/<note_id>")]
@@ -472,9 +478,9 @@ async fn delete_note_for_game_by_id(
 
     let result = sqlx::query!(
         r#"UPDATE note
-              SET deleted = TRUE
-            WHERE game_id = ?
-              AND id = ?"#,
+              SET deleted_at = now()
+            WHERE game_id = $1
+              AND id = $2"#,
         game_id,
         note_id
     )
@@ -497,9 +503,9 @@ async fn reserve_game_at_location_by_id(
 
     let result = sqlx::query!(
         r#"UPDATE game
-              SET reserved = TRUE
-            WHERE location_id = ?
-              AND id = ?"#,
+              SET reserved_at = now()
+            WHERE location_id = $1
+              AND id = $2"#,
         location_id,
         game_id
     )
@@ -522,9 +528,9 @@ async fn release_game_at_location_by_id(
 
     let result = sqlx::query!(
         r#"UPDATE game
-              SET reserved = FALSE
-            WHERE location_id = ?
-              AND id = ?"#,
+              SET reserved_at = NULL
+            WHERE location_id = $1
+              AND id = $2"#,
         location_id,
         game_id
     )
