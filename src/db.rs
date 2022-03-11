@@ -1,8 +1,8 @@
 use chrono::prelude::*;
 
-use rocket::{futures, Build, Rocket};
 use rocket::fairing::{self, AdHoc};
 use rocket::serde::Serialize;
+use rocket::{futures, Build, Rocket};
 use rocket_db_pools::{sqlx, Connection, Database};
 
 use sqlx::Acquire;
