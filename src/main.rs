@@ -97,7 +97,7 @@ impl GameWithNotesResponse {
             disabled_at: game.disabled_at,
             reserved_at: game.reserved_at,
             reserved_for_minutes: 0,
-            notes: NoteResponse::from(game.notes),
+            notes: NoteResponse::from_vec(game.notes),
         }
     }
 }
@@ -123,7 +123,14 @@ struct NoteResponse {
 }
 
 impl NoteResponse {
-    fn from(notes: Vec<db::Note>) -> Vec<NoteResponse> {
+    fn from(note: db::Note) -> NoteResponse {
+        NoteResponse {
+            id: note.id,
+            note: note.note,
+        }
+    }
+
+    fn from_vec(notes: Vec<db::Note>) -> Vec<NoteResponse> {
         notes
             .into_iter()
             .map(|n| NoteResponse {
@@ -216,13 +223,12 @@ async fn add_game_at_location(
 }
 
 #[put(
-    "/<location_id>/games/<game_id>",
+    "/<_>/games/<game_id>",
     format = "application/json",
     data = "<request>"
 )]
 async fn update_game_at_location(
     db: Connection<db::Db>,
-    location_id: i64,
     game_id: i64,
     request: Json<UpdateGameRequest>,
 ) -> Result<Json<GameResponse>> {
@@ -260,6 +266,86 @@ async fn enable_game_at_location_by_id(
     Ok(Json(response))
 }
 
+#[delete("/<_>/games/<game_id>")]
+async fn delete_game_at_location_by_id(db: Connection<db::Db>, game_id: i64) -> Result<Option<()>> {
+    db::Game::delete_by_id(db, game_id).await?;
+
+    Ok(Some(()))
+}
+
+#[post(
+    "/<_>/games/<game_id>/notes",
+    format = "application/json",
+    data = "<request>"
+)]
+async fn add_note_for_game_at_location(
+    db: Connection<db::Db>,
+    game_id: i64,
+    request: Json<AddNoteRequest>,
+) -> Result<Created<Json<NoteResponse>>> {
+    let note = db::Note::add_by_game_id(db, game_id, request.note.to_owned()).await?;
+    let response = NoteResponse::from(note);
+
+    Ok(Created::new("/").body(Json(response)))
+}
+
+#[delete("/<_>/games/<_>/notes/<note_id>")]
+async fn delete_note_for_game_by_id(db: Connection<db::Db>, note_id: i64) -> Result<Option<()>> {
+    db::Note::delete_by_id(db, note_id).await?;
+
+    Ok(Some(()))
+}
+
+// #[post("/<location_id>/games/<game_id>/reservations")]
+// async fn reserve_game_at_location_by_id(
+//     mut db: Connection<Db>,
+//     location_id: i64,
+//     game_id: i64,
+// ) -> Result<Option<()>> {
+//     let mut tx = db.begin().await?;
+
+//     let result = sqlx::query!(
+//         r#"UPDATE game
+//               SET reserved_at = now()
+//             WHERE location_id = $1
+//               AND id = $2"#,
+//         location_id,
+//         game_id
+//     )
+//     .execute(&mut tx)
+//     .await?;
+
+//     tx.commit().await?;
+
+//     // Fix this return value, don't use result?
+//     Ok((result.rows_affected() == 1).then(|| ()))
+// }
+
+// #[delete("/<location_id>/games/<game_id>/reservations")]
+// async fn release_game_at_location_by_id(
+//     mut db: Connection<Db>,
+//     location_id: i64,
+//     game_id: i64,
+// ) -> Result<Option<()>> {
+//     let mut tx = db.begin().await?;
+
+//     let result = sqlx::query!(
+//         r#"UPDATE game
+//               SET reserved_at = NULL
+//             WHERE location_id = $1
+//               AND id = $2"#,
+//         location_id,
+//         game_id
+//     )
+//     .execute(&mut tx)
+//     .await?;
+
+//     tx.commit().await?;
+
+//     // Fix this return value, don't use result?
+//     Ok((result.rows_affected() == 1).then(|| ()))
+// }
+
 #[launch]
 fn rocket() -> _ {
     rocket::build()
@@ -278,6 +364,9 @@ fn rocket() -> _ {
                 update_game_at_location,
                 disable_game_at_location_by_id,
                 enable_game_at_location_by_id,
+                delete_game_at_location_by_id,
+                add_note_for_game_at_location,
+                delete_note_for_game_by_id,
             ],
         )
 }

@@ -1,6 +1,5 @@
 use rocket::fairing::{self, AdHoc};
-use rocket::response::status::Created;
-use rocket::serde::{json::Json, Deserialize, Serialize};
+use rocket::serde::Serialize;
 use rocket::{futures, Build, Rocket};
 
 use rocket_db_pools::{sqlx, Connection, Database};
@@ -96,6 +95,8 @@ impl Location {
     }
 }
 
+// Bah! This needs to be fixed. Can we pass around a transaction and compose functions
+// in API layer and not do this shit?
 #[derive(Debug, Serialize)]
 #[serde(crate = "rocket::serde")]
 pub struct GameWithNotes {
@@ -342,16 +343,13 @@ impl Note {
     }
 
     pub async fn delete_by_id(mut db: Connection<Db>, id: i64) -> Result<Note> {
-        // TODO:
-        // - Needs to authorize
-        // - Nedes to mark all related data as deleted
         let mut tx = db.begin().await?;
         let note = sqlx::query_as!(
             Note,
             r#"UPDATE note
-              SET deleted_at = now()
-            WHERE id = $1
-        RETURNING *"#,
+                  SET deleted_at = now()
+                WHERE id = $1
+            RETURNING *"#,
             id
         )
         .fetch_one(&mut tx)
@@ -361,157 +359,27 @@ impl Note {
         Ok(note)
     }
 
-    pub async fn find_by_game_id(mut db: Connection<Db>, id: i64) -> Result<Vec<Note>> {
-        let mut tx = db.begin().await?;
-        let notes = sqlx::query_as!(
-            Note,
-            r#"SELECT *
-                 FROM note
-                WHERE deleted_at IS NULL
-                  AND game_id = $1
-             ORDER BY created_at ASC"#,
-            id
-        )
-        .fetch(&mut tx)
-        .try_collect::<Vec<_>>()
-        .await?;
+    // TODO: Ideally we'd like to compose functions in the APO layer and use this but I haven't been
+    // able to figure out how to do that yet.
 
-        Ok(notes)
-    }
+    // pub async fn find_by_game_id(mut db: Connection<Db>, id: i64) -> Result<Vec<Note>> {
+    //     let mut tx = db.begin().await?;
+    //     let notes = sqlx::query_as!(
+    //         Note,
+    //         r#"SELECT *
+    //              FROM note
+    //             WHERE deleted_at IS NULL
+    //               AND game_id = $1
+    //          ORDER BY created_at ASC"#,
+    //         id
+    //     )
+    //     .fetch(&mut tx)
+    //     .try_collect::<Vec<_>>()
+    //     .await?;
+
+    //     Ok(notes)
+    // }
 }
-
-// #[delete("/<location_id>/games/<game_id>")]
-// async fn delete_game_at_location_by_id(
-//     mut db: Connection<Db>,
-//     location_id: i64,
-//     game_id: i64,
-// ) -> Result<Option<()>> {
-//     // - Potentially needs to mark related data as deleted?
-//     let mut tx = db.begin().await?;
-
-//     let result = sqlx::query!(
-//         r#"UPDATE game
-//               SET deleted_at = now()
-//             WHERE location_id = $1
-//               AND id = $2"#,
-//         location_id,
-//         game_id
-//     )
-//     .execute(&mut tx)
-//     .await?;
-
-//     tx.commit().await?;
-
-//     // Fix this return value, don't use result?
-//     Ok((result.rows_affected() == 1).then(|| ()))
-// }
-
-// #[post(
-//     "/<_>/games/<game_id>/notes",
-//     format = "application/json",
-//     data = "<request>"
-// )]
-// async fn add_note_for_game_at_location(
-//     mut db: Connection<Db>,
-//     game_id: i64,
-//     request: Json<AddNoteRequest>,
-// ) -> Result<Created<Json<IdResponse>>> {
-//     let mut tx = db.begin().await?;
-
-//     // TODO: PlayerId needs to come from authorization/sessions.
-
-//     let note = sqlx::query_as!(
-//         Note,
-//         r#"INSERT INTO note (note, game_id)
-//                 VALUES ($1, $2)
-//              RETURNING *"#,
-//         request.note,
-//         game_id,
-//     )
-//     .fetch_one(&mut tx)
-//     .await?;
-
-//     tx.commit().await?;
-//     Ok(Created::new("/").body(Json(IdResponse { id: note.id })))
-// }
-
-// #[delete("/<_>/games/<game_id>/notes/<note_id>")]
-// async fn delete_note_for_game_by_id(
-//     mut db: Connection<Db>,
-//     game_id: i64,
-//     note_id: i64,
-// ) -> Result<Option<()>> {
-//     // TODO:
-//     // - Needs to authorize
-//     // - Nedes to mark all related data as deleted
-//     let mut tx = db.begin().await?;
-
-//     let result = sqlx::query!(
-//         r#"UPDATE note
-//               SET deleted_at = now()
-//             WHERE game_id = $1
-//               AND id = $2"#,
-//         game_id,
-//         note_id
-//     )
-//     .execute(&mut tx)
-//     .await?;
-
-//     tx.commit().await?;
-
-//     // Fix this return value, don't use result?
-//     Ok((result.rows_affected() == 1).then(|| ()))
-// }
-
-// #[post("/<location_id>/games/<game_id>/reservations")]
-// async fn reserve_game_at_location_by_id(
-//     mut db: Connection<Db>,
-//     location_id: i64,
-//     game_id: i64,
-// ) -> Result<Option<()>> {
-//     let mut tx = db.begin().await?;
-
-//     let result = sqlx::query!(
-//         r#"UPDATE game
-//               SET reserved_at = now()
-//             WHERE location_id = $1
-//               AND id = $2"#,
-//         location_id,
-//         game_id
-//     )
-//     .execute(&mut tx)
-//     .await?;
-
-//     tx.commit().await?;
-
-//     // Fix this return value, don't use result?
-//     Ok((result.rows_affected() == 1).then(|| ()))
-// }
-
-// #[delete("/<location_id>/games/<game_id>/reservations")]
-// async fn release_game_at_location_by_id(
-//     mut db: Connection<Db>,
-//     location_id: i64,
-//     game_id: i64,
-// ) -> Result<Option<()>> {
-//     let mut tx = db.begin().await?;
-
-//     let result = sqlx::query!(
-//         r#"UPDATE game
-//               SET reserved_at = NULL
-//             WHERE location_id = $1
-//               AND id = $2"#,
-//         location_id,
-//         game_id
-//     )
-//     .execute(&mut tx)
-//     .await?;
-
-//     tx.commit().await?;
-
-//     // Fix this return value, don't use result?
-//     Ok((result.rows_affected() == 1).then(|| ()))
-// }
 
 async fn run_migrations(rocket: Rocket<Build>) -> fairing::Result {
     match Db::fetch(&rocket) {
@@ -531,21 +399,5 @@ pub fn stage() -> AdHoc {
         rocket
             .attach(Db::init())
             .attach(AdHoc::try_on_ignite("SQLx migrations", run_migrations))
-        // .mount(
-        //     "/v1/locations",
-        //     routes![
-        //         get_games_by_location_id,
-        //         get_game_at_location_by_id,
-        //         add_game_at_location,
-        //         update_game_at_location,
-        //         disable_game_at_location_by_id,
-        //         enable_game_at_location_by_id,
-        //         delete_game_at_location_by_id,
-        //         add_note_for_game_at_location,
-        //         delete_note_for_game_by_id,
-        //         reserve_game_at_location_by_id,
-        //         release_game_at_location_by_id,
-        //     ],
-        // )
     })
 }
