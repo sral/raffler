@@ -139,6 +139,9 @@ pub struct Game {
     created_at: NaiveDateTime,
 }
 
+// Stick the following in `reserved_minutes` at some point:
+// SELECT COALESCE(EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0)
+
 impl Game {
     pub async fn find_by_id(mut db: Connection<Db>, id: i64) -> Result<GameWithNotes> {
         let mut tx = db.begin().await?;
@@ -392,8 +395,8 @@ impl Note {
         Ok(note)
     }
 
-    // TODO: Ideally we'd like to compose functions in the APO layer and use this but I haven't been
-    // able to figure out how to do that yet.
+    // TODO: Ideally we'd like to compose functions in the API layer and use this rather than doing
+    // queries above when quering for games but I haven't been able to figure out how to do that yet.
 
     // pub async fn find_by_game_id(mut db: Connection<Db>, id: i64) -> Result<Vec<Note>> {
     //     let mut tx = db.begin().await?;
