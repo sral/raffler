@@ -218,8 +218,9 @@ async fn add_game_at_location(
         request.abbreviation.to_owned(),
     )
     .await?;
+    let response = GameResponse::from(game);
 
-    Ok(Created::new("/").body(Json(GameResponse::from(game))))
+    Ok(Created::new("/").body(Json(response)))
 }
 
 #[put(
@@ -296,55 +297,27 @@ async fn delete_note_for_game_by_id(db: Connection<db::Db>, note_id: i64) -> Res
     Ok(Some(()))
 }
 
-// #[post("/<location_id>/games/<game_id>/reservations")]
-// async fn reserve_game_at_location_by_id(
-//     mut db: Connection<Db>,
-//     location_id: i64,
-//     game_id: i64,
-// ) -> Result<Option<()>> {
-//     let mut tx = db.begin().await?;
+#[post("/<_>/games/<game_id>/reservations")]
+async fn reserve_game_at_location_by_id(
+    db: Connection<db::Db>,
+    game_id: i64,
+) -> Result<Created<Json<GameResponse>>> {
+    let game = db::Game::reserve_by_id(db, game_id).await?;
+    let response = GameResponse::from(game);
 
-//     let result = sqlx::query!(
-//         r#"UPDATE game
-//               SET reserved_at = now()
-//             WHERE location_id = $1
-//               AND id = $2"#,
-//         location_id,
-//         game_id
-//     )
-//     .execute(&mut tx)
-//     .await?;
+    Ok(Created::new("/").body(Json(response)))
+}
 
-//     tx.commit().await?;
+#[post("/<_>/games/<game_id>/reservations")]
+async fn release_game_at_location_by_id(
+    db: Connection<db::Db>,
+    game_id: i64,
+) -> Result<Json<GameResponse>> {
+    let game = db::Game::release_reservation_by_id(db, game_id).await?;
+    let response = GameResponse::from(game);
 
-//     // Fix this return value, don't use result?
-//     Ok((result.rows_affected() == 1).then(|| ()))
-// }
-
-// #[delete("/<location_id>/games/<game_id>/reservations")]
-// async fn release_game_at_location_by_id(
-//     mut db: Connection<Db>,
-//     location_id: i64,
-//     game_id: i64,
-// ) -> Result<Option<()>> {
-//     let mut tx = db.begin().await?;
-
-//     let result = sqlx::query!(
-//         r#"UPDATE game
-//               SET reserved_at = NULL
-//             WHERE location_id = $1
-//               AND id = $2"#,
-//         location_id,
-//         game_id
-//     )
-//     .execute(&mut tx)
-//     .await?;
-
-//     tx.commit().await?;
-
-//     // Fix this return value, don't use result?
-//     Ok((result.rows_affected() == 1).then(|| ()))
-// }
+    Ok(Json(response))
+}
 
 #[launch]
 fn rocket() -> _ {
@@ -367,6 +340,8 @@ fn rocket() -> _ {
                 delete_game_at_location_by_id,
                 add_note_for_game_at_location,
                 delete_note_for_game_by_id,
+                reserve_game_at_location_by_id,
+                release_game_at_location_by_id,
             ],
         )
 }

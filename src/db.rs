@@ -309,6 +309,38 @@ impl Game {
         tx.commit().await?;
         Ok(game)
     }
+
+    pub async fn reserve_by_id(mut db: Connection<Db>, id: i64) -> Result<Game> {
+        let mut tx = db.begin().await?;
+        let game = sqlx::query_as!(
+            Game,
+            r#"UPDATE game
+                  SET reserved_at = now()
+                WHERE id = $1"#,
+            id
+        )
+        .execute(&mut tx)
+        .await?;
+
+        tx.commit().await?;
+        Ok(game)
+    }
+
+    pub async fn release_reservation_by_id(mut db: Connection<Db>, id: i64) -> Result<Game> {
+        let mut tx = db.begin().await?;
+        let game = sqlx::query_as!(
+            Game,
+            r#"UPDATE game
+                  SET reserved_at = NULL
+                WHERE id = $1"#,
+            id
+        )
+        .execute(&mut tx)
+        .await?;
+
+        tx.commit().await?;
+        Ok(game)
+    }
 }
 
 #[derive(Debug, Serialize)]

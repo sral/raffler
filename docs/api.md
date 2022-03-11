@@ -286,15 +286,6 @@ Content-Type: application/json
     "id": 1,
     "name: "Attack From Mars",
     "abbreviation": "AFM",
-    "reserved": true,
-    "reserved_for_minutes": 0,
-    "disabled_at": null,
-    "notes": [
-        {
-            "id": 1,
-            "note": "",
-        },
-    ]
 }
 ```
 #### Reserve game at location
@@ -306,7 +297,13 @@ POST v1/locations/{location_id}/games/{game_id}/reservations HTTP/1.1
 
 Example response:
 ```
-HTTP/1.1 200 OK
+HTTP/1.1 201 Created
+
+{
+    "id": 1,
+    "name: "Attack From Mars",
+    "abbreviation": "AFM",
+}
 ```
 #### Release current game reservation at location
 
@@ -318,6 +315,12 @@ DELETE v1/locations/{location_id}/games/{game_id}/reservations HTTP/1.1
 Example response:
 ```
 HTTP/1.1 200 OK
+
+{
+    "id": 1,
+    "name: "Attack From Mars",
+    "abbreviation": "AFM",
+}
 ```
 
 ### Notes
