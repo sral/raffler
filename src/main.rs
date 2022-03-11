@@ -1,17 +1,17 @@
 #[macro_use]
 extern crate rocket;
 
+mod db;
+
+
 use chrono::prelude::*;
 
 use rocket::fs::{relative, FileServer};
 use rocket::response::status::Created;
 use rocket::serde::{json::Json, Deserialize, Serialize};
-
 use rocket_db_pools::{sqlx, Connection};
 
-use rocket::response::status;
 
-mod db;
 
 type Result<T, E = rocket::response::Debug<sqlx::Error>> = std::result::Result<T, E>;
 
@@ -155,18 +155,20 @@ async fn get_location_by_id(
     location_id: i64,
 ) -> Result<Json<LocationResponse>> {
     let location = db::Location::find_by_id(db, location_id).await?;
+    let response = LocationResponse::from(location);
 
-    Ok(Json(LocationResponse::from(location)))
+    Ok(Json(response))
 }
 
 #[post("/", format = "application/json", data = "<request>")]
 async fn add_location(
     db: Connection<db::Db>,
     request: Json<AddLocationRequest>,
-) -> Result<status::Created<Json<LocationResponse>>> {
+) -> Result<Created<Json<LocationResponse>>> {
     let location = db::Location::add(db, request.name.to_owned()).await?;
+    let response = LocationResponse::from(location);
 
-    Ok(status::Created::new("/").body(Json(LocationResponse::from(location))))
+    Ok(Created::new("/").body(Json(response)))
 }
 
 #[delete("/<location_id>")]

@@ -1,10 +1,9 @@
+use chrono::prelude::*;
+
+use rocket::{futures, Build, Rocket};
 use rocket::fairing::{self, AdHoc};
 use rocket::serde::Serialize;
-use rocket::{futures, Build, Rocket};
-
 use rocket_db_pools::{sqlx, Connection, Database};
-
-use chrono::prelude::*;
 
 use sqlx::Acquire;
 
@@ -316,10 +315,11 @@ impl Game {
             Game,
             r#"UPDATE game
                   SET reserved_at = now()
-                WHERE id = $1"#,
+                WHERE id = $1
+            RETURNING * "#,
             id
         )
-        .execute(&mut tx)
+        .fetch_one(&mut tx)
         .await?;
 
         tx.commit().await?;
@@ -332,10 +332,11 @@ impl Game {
             Game,
             r#"UPDATE game
                   SET reserved_at = NULL
-                WHERE id = $1"#,
+                WHERE id = $1
+            RETURNING *"#,
             id
         )
-        .execute(&mut tx)
+        .fetch_one(&mut tx)
         .await?;
 
         tx.commit().await?;
