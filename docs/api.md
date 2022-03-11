@@ -53,7 +53,7 @@ Content-Type: application/json
 ```
 Example response
 ```
-HTTP/1.1 200 OK
+HTTP/1.1 201 Created
 Content-Type: application/json
 
 {
@@ -154,16 +154,18 @@ Content-Type: application/json
 
 {
     "name": "Scared Stiff",
-    "abbreviation": "SS",
+    "abbreviation": "SS"
 }
 ```
 Example response
 ```
-HTTP/1.1 200 OK
+HTTP/1.1 201 Created
 Content-Type: application/json
 
 {
     "id": 3,
+    "name": "Scared Stiff",
+    "abbreviation": "SS"
 }
 ```
 
@@ -182,6 +184,12 @@ PUT v1/locations/{location_id}/games/{game_id} HTTP/1.1
 Example response:
 ```
 HTTP/1.1 200 OK
+
+{
+    "id": 1,
+    "name": "Attack From Lars",
+    "abbreviation": "AFL"
+}
 ```
 #### Remove game from location
 Example request:
@@ -205,6 +213,12 @@ POST v1/locations/{location_id}/games/{game_id}/disable HTTP/1.1
 Example response:
 ```
 HTTP/1.1 200 OK
+
+{
+    "id": 3,
+    "name": "Scared Stiff",
+    "abbreviation": "SS"
+}
 ```
 
 #### Enable game at location
@@ -218,6 +232,12 @@ POST v1/locations/{location_id}/games/{game_id}/enable HTTP/1.1
 Example response:
 ```
 HTTP/1.1 200 OK
+
+{
+    "id": 3,
+    "name": "Scared Stiff",
+    "abbreviation": "SS"
+}
 ```
 
 
@@ -304,8 +324,6 @@ HTTP/1.1 200 OK
 
 Actions related to notes. Notes can be used as for example a service log.
 
-#### Create note
-
 #### List notes for game at locations
 TODO: Maybe? Nested in game response. Depends on how we want things to work.
 
@@ -320,11 +338,12 @@ Content-Type: application/json
 ```
 Example response
 ```
-HTTP/1.1 200 OK
+HTTP/1.1 201 Created
 Content-Type: application/json
 
 {
     "id": 3,
+    "note": "Auto plunger infested with cows"
 }
 ```
 

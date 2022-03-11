@@ -1,4 +1,5 @@
 - Refactor and separate API from DB somehow (stick DB in shared state? Move db implementation and pass transaction in?)
+- Spawn and pass transaction to db functions to allow composing/multiple queries in same transaction
 - API needs to be revisted once we build frontend
     - Inconsistent responses (always echo state?)
     - Accept formdata instead of json in?
