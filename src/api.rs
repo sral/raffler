@@ -76,7 +76,7 @@ pub struct GameWithNotesResponse {
     abbreviation: String,
     disabled_at: Option<NaiveDateTime>,
     reserved_at: Option<NaiveDateTime>,
-    reserved_for_minutes: i64,
+    reserved_minutes: i32,
     notes: Vec<NoteResponse>,
 }
 
@@ -88,7 +88,7 @@ impl GameWithNotesResponse {
             abbreviation: game.abbreviation,
             disabled_at: game.disabled_at,
             reserved_at: game.reserved_at,
-            reserved_for_minutes: 0,
+            reserved_minutes: game.reserved_minutes,
             notes: NoteResponse::from_vec(game.notes),
         }
     }

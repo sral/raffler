@@ -87,7 +87,7 @@ Content-Type: application/json
         "name: "Attack From Mars",
         "abbreviation": "AFM",
         "reserved": false,
-        "reserved_for_minutes": 0,
+        "reserved_minutes": 0,
         "disabled_at": "2022-03-11T01:01:00.00000+00:00",
         "notes": [
             {
@@ -105,7 +105,7 @@ Content-Type: application/json
         "name: "Iron Maiden (Pro)",
         "abbreviation": "IRMA",
         "reserved": true,
-        "reserved_for_minutes": 5,
+        "reserved_minutes": 5,
         "disabled_at": null,
         "notes": [
             {
@@ -132,7 +132,7 @@ Content-Type: application/json
     "name: "Attack From Mars",
     "abbreviation": "AFM",
     "reserved": false,
-    "reserved_for_minutes": 0,
+    "reserved_minutes": 0,
     "disabled_at": null,
     "notes": [
         {

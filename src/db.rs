@@ -108,6 +108,7 @@ pub struct GameWithNotes {
     pub deleted_at: Option<NaiveDateTime>,
     created_at: NaiveDateTime,
     pub notes: Vec<Note>,
+    pub reserved_minutes: i32,
 }
 
 impl GameWithNotes {
@@ -122,6 +123,7 @@ impl GameWithNotes {
             deleted_at: game.deleted_at,
             created_at: game.created_at,
             notes: notes,
+            reserved_minutes: game.reserved_minutes,
         }
     }
 }
@@ -137,17 +139,15 @@ pub struct Game {
     pub reserved_at: Option<NaiveDateTime>,
     pub deleted_at: Option<NaiveDateTime>,
     created_at: NaiveDateTime,
+    pub reserved_minutes: i32,
 }
-
-// Stick the following in `reserved_minutes` at some point:
-// SELECT COALESCE(EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0)
 
 impl Game {
     pub async fn find_by_id(mut db: Connection<Db>, id: i64) -> Result<GameWithNotes> {
         let mut tx = db.begin().await?;
         let game = sqlx::query_as!(
             Game,
-            r#"SELECT *
+            r#"SELECT *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!"
                  FROM game
                 WHERE deleted_at IS NULL
                   AND id = $1"#,
@@ -180,7 +180,7 @@ impl Game {
         let mut tx = db.begin().await?;
         let games = sqlx::query_as!(
             Game,
-            r#"SELECT *
+            r#"SELECT *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!"
                  FROM game
                 WHERE deleted_at IS NULL
                   AND location_id = $1
@@ -223,7 +223,7 @@ impl Game {
             Game,
             r#"INSERT INTO game (location_id, name, abbreviation)
                VALUES ($1, $2, $3)
-            RETURNING *"#,
+            RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
             location_id,
             name,
             abbreviation
@@ -248,7 +248,7 @@ impl Game {
                   SET name = $1,
                       abbreviation = $2
                 WHERE id = $3
-            RETURNING *"#,
+            RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
             name,
             abbreviation,
             id
@@ -267,7 +267,7 @@ impl Game {
             r#"UPDATE game
                   SET disabled_at = now()
                 WHERE id = $1
-            RETURNING *"#,
+            RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
             id,
         )
         .fetch_one(&mut tx)
@@ -284,7 +284,7 @@ impl Game {
             r#"UPDATE game
                   SET disabled_at = NULL
                 WHERE id = $1
-            RETURNING *"#,
+            RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
             id,
         )
         .fetch_one(&mut tx)
@@ -302,7 +302,7 @@ impl Game {
             r#"UPDATE game
                   SET deleted_at = now()
                 WHERE id = $1
-            RETURNING *"#,
+            RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
             id
         )
         .fetch_one(&mut tx)
@@ -319,7 +319,7 @@ impl Game {
             r#"UPDATE game
                   SET reserved_at = now()
                 WHERE id = $1
-            RETURNING * "#,
+            RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
             id
         )
         .fetch_one(&mut tx)
@@ -336,7 +336,7 @@ impl Game {
             r#"UPDATE game
                   SET reserved_at = NULL
                 WHERE id = $1
-            RETURNING *"#,
+            RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
             id
         )
         .fetch_one(&mut tx)
