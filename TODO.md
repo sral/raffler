@@ -1,13 +1,14 @@
-- Refactor and separate API from DB somehow (stick DB in shared state? Move db implementation and pass transaction in?)
-- Spawn and pass transaction to db functions to allow composing/multiple queries in same transaction
+- Removing location id from WHERE-clauses was a mistake. Ids are globally unique but all
+  need to be checked for the API to make sense. For example you can now access/mutate games through
+  URLs like /locations/{INVALID_ID,ANY_LOCATION_ID}/games/1 which makes no sense.
+- Improve API error handling, implement and document HTTP statuses.
+    - Do we need an API error object to provide context around failures? Not yet maybe but in the future?
+- Spawn and pass transaction to db functions to allow composing/multiple queries in same transaction?
 - API needs to be revisted once we build frontend
     - Inconsistent responses (always echo state?)
-    - Accept formdata instead of json in?
 - Refactor db to re-use common queries etc... remove duplication... maybe... :reverse_shaking_fist:
     - For a blatant example see disable/enable
 - Learn how to deal with sessions/auth in Rocket
-- Fix return values i.e. return appropriate HTTP statuses
-    - Do we need an error object to provider context around failures? Not yet maybe but in the future?
 - Ditch Rocket and go for Actix?!
 - Don't forget to add locks (SELECT ... FOR UPDATE)?
 - There's currently no validation of actions on deleted entities. Ex you can add games at deleted locations

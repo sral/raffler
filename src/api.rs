@@ -3,6 +3,7 @@ use crate::db;
 use chrono::prelude::*;
 
 use rocket::fairing::AdHoc;
+use rocket::http::Status;
 use rocket::response::status::Created;
 use rocket::serde::{json::Json, Deserialize, Serialize};
 use rocket_db_pools::{sqlx, Connection};
@@ -134,65 +135,89 @@ impl NoteResponse {
 }
 
 #[get("/")]
-async fn get_all_locations(db: Connection<db::Db>) -> Result<Json<Vec<LocationResponse>>> {
-    let locations = db::Location::find_all(db).await?;
-    let response = LocationResponse::from_vec(locations);
+async fn get_all_locations(db: Connection<db::Db>) -> Result<Json<Vec<LocationResponse>>, Status> {
+    let locations = db::Location::find_all(db).await;
 
-    Ok(Json(response))
+    match locations {
+        Ok(locations) => {
+            let response = LocationResponse::from_vec(locations);
+            Ok(Json(response))
+        }
+        _ => Err(Status::NotFound),
+    }
 }
 
 #[get("/<location_id>")]
 async fn get_location_by_id(
     db: Connection<db::Db>,
     location_id: i64,
-) -> Result<Json<LocationResponse>> {
-    let location = db::Location::find_by_id(db, location_id).await?;
-    let response = LocationResponse::from(location);
+) -> Result<Json<LocationResponse>, Status> {
+    let location = db::Location::find_by_id(db, location_id).await;
 
-    Ok(Json(response))
+    match location {
+        Ok(location) => Ok(Json(LocationResponse::from(location))),
+        _ => Err(Status::NotFound),
+    }
 }
 
 #[post("/", format = "application/json", data = "<request>")]
 async fn add_location(
     db: Connection<db::Db>,
     request: Json<AddLocationRequest>,
-) -> Result<Created<Json<LocationResponse>>> {
-    let location = db::Location::add(db, request.name.to_owned()).await?;
-    let response = LocationResponse::from(location);
+) -> Result<Created<Json<LocationResponse>>, Status> {
+    let location = db::Location::add(db, request.name.to_owned()).await;
 
-    Ok(Created::new("/").body(Json(response)))
+    match location {
+        Ok(location) => {
+            let response = LocationResponse::from(location);
+            // TODO: Fix path
+            Ok(Created::new("/").body(Json(response)))
+        }
+        _ => Err(Status::BadRequest),
+    }
 }
 
 #[delete("/<location_id>")]
-async fn delete_location_by_id(db: Connection<db::Db>, location_id: i64) -> Result<Option<()>> {
-    let _location = db::Location::delete_by_id(db, location_id).await?;
-
-    Ok(Some(()))
+async fn delete_location_by_id(
+    db: Connection<db::Db>,
+    location_id: i64,
+) -> Result<Option<()>, Status> {
+    let location = db::Location::delete_by_id(db, location_id).await;
+    match location {
+        Ok(_location) => Ok(Some(())),
+        _ => Err(Status::BadRequest),
+    }
 }
 
 #[get("/<location_id>/games")]
 async fn get_games_by_location_id(
     db: Connection<db::Db>,
     location_id: i64,
-) -> Result<Json<Vec<GameWithNotesResponse>>> {
-    let games = db::Game::find_by_location_id(db, location_id).await?;
-
-    let mut response = Vec::new();
-    for g in games {
-        response.push(GameWithNotesResponse::from(g));
+) -> Result<Json<Vec<GameWithNotesResponse>>, Status> {
+    let games = db::Game::find_by_location_id(db, location_id).await;
+    match games {
+        Ok(games) => {
+            let mut response = Vec::new();
+            for g in games {
+                response.push(GameWithNotesResponse::from(g));
+            }
+            Ok(Json(response))
+        }
+        _ => Err(Status::NotFound),
     }
-
-    Ok(Json(response))
 }
 
 #[get("/<_>/games/<game_id>")]
 async fn get_game_at_location_by_id(
     db: Connection<db::Db>,
     game_id: i64,
-) -> Result<Json<GameWithNotesResponse>> {
-    let game = db::Game::find_by_id(db, game_id).await?;
+) -> Result<Json<GameWithNotesResponse>, Status> {
+    let game = db::Game::find_by_id(db, game_id).await;
 
-    Ok(Json(GameWithNotesResponse::from(game)))
+    match game {
+        Ok(game) => Ok(Json(GameWithNotesResponse::from(game))),
+        _ => Err(Status::NotFound),
+    }
 }
 
 #[post(
@@ -204,17 +229,23 @@ async fn add_game_at_location(
     db: Connection<db::Db>,
     location_id: i64,
     request: Json<AddGameRequest>,
-) -> Result<Created<Json<GameResponse>>> {
+) -> Result<Created<Json<GameResponse>>, Status> {
     let game = db::Game::add(
         db,
         location_id,
         request.name.to_owned(),
         request.abbreviation.to_owned(),
     )
-    .await?;
-    let response = GameResponse::from(game);
+    .await;
 
-    Ok(Created::new("/").body(Json(response)))
+    match game {
+        Ok(game) => {
+            let response = GameResponse::from(game);
+            // TODO: Fix path
+            Ok(Created::new("/").body(Json(response)))
+        }
+        _ => Err(Status::BadRequest),
+    }
 }
 
 #[put(
@@ -226,46 +257,58 @@ async fn update_game_at_location(
     db: Connection<db::Db>,
     game_id: i64,
     request: Json<UpdateGameRequest>,
-) -> Result<Json<GameResponse>> {
+) -> Result<Json<GameResponse>, Status> {
     let game = db::Game::update_by_id(
         db,
         game_id,
         request.name.to_owned(),
         request.abbreviation.to_owned(),
     )
-    .await?;
-    let response = GameResponse::from(game);
+    .await;
 
-    Ok(Json(response))
+    match game {
+        Ok(game) => Ok(Json(GameResponse::from(game))),
+        _ => Err(Status::BadRequest),
+    }
 }
 
 #[post("/<_>/games/<game_id>/disable")]
 async fn disable_game_at_location_by_id(
     db: Connection<db::Db>,
     game_id: i64,
-) -> Result<Json<GameResponse>> {
-    let game = db::Game::disable_by_id(db, game_id).await?;
-    let response = GameResponse::from(game);
+) -> Result<Json<GameResponse>, Status> {
+    let game = db::Game::disable_by_id(db, game_id).await;
 
-    Ok(Json(response))
+    match game {
+        Ok(game) => Ok(Json(GameResponse::from(game))),
+        _ => Err(Status::BadRequest),
+    }
 }
 
 #[post("/<_>/games/<game_id>/enable")]
 async fn enable_game_at_location_by_id(
     db: Connection<db::Db>,
     game_id: i64,
-) -> Result<Json<GameResponse>> {
-    let game = db::Game::enable_by_id(db, game_id).await?;
-    let response = GameResponse::from(game);
+) -> Result<Json<GameResponse>, Status> {
+    let game = db::Game::enable_by_id(db, game_id).await;
 
-    Ok(Json(response))
+    match game {
+        Ok(game) => Ok(Json(GameResponse::from(game))),
+        _ => Err(Status::BadRequest),
+    }
 }
 
 #[delete("/<_>/games/<game_id>")]
-async fn delete_game_at_location_by_id(db: Connection<db::Db>, game_id: i64) -> Result<Option<()>> {
-    db::Game::delete_by_id(db, game_id).await?;
+async fn delete_game_at_location_by_id(
+    db: Connection<db::Db>,
+    game_id: i64,
+) -> Result<Option<()>, Status> {
+    let game = db::Game::delete_by_id(db, game_id).await;
 
-    Ok(Some(()))
+    match game {
+        Ok(_game) => Ok(Some(())),
+        _ => Err(Status::BadRequest),
+    }
 }
 
 #[post(
@@ -277,40 +320,60 @@ async fn add_note_for_game_at_location(
     db: Connection<db::Db>,
     game_id: i64,
     request: Json<AddNoteRequest>,
-) -> Result<Created<Json<NoteResponse>>> {
-    let note = db::Note::add_by_game_id(db, game_id, request.note.to_owned()).await?;
-    let response = NoteResponse::from(note);
+) -> Result<Created<Json<NoteResponse>>, Status> {
+    let note = db::Note::add_by_game_id(db, game_id, request.note.to_owned()).await;
 
-    Ok(Created::new("/").body(Json(response)))
+    match note {
+        Ok(note) => {
+            let response = NoteResponse::from(note);
+            // TODO: Fix path
+            Ok(Created::new("/").body(Json(response)))
+        }
+        _ => Err(Status::BadRequest),
+    }
 }
 
 #[delete("/<_>/games/<_>/notes/<note_id>")]
-async fn delete_note_for_game_by_id(db: Connection<db::Db>, note_id: i64) -> Result<Option<()>> {
-    db::Note::delete_by_id(db, note_id).await?;
+async fn delete_note_for_game_by_id(
+    db: Connection<db::Db>,
+    note_id: i64,
+) -> Result<Option<()>, Status> {
+    let note = db::Note::delete_by_id(db, note_id).await;
 
-    Ok(Some(()))
+    match note {
+        Ok(_note) => Ok(Some(())),
+        _ => Err(Status::BadRequest),
+    }
 }
 
 #[post("/<_>/games/<game_id>/reservations")]
 async fn reserve_game_at_location_by_id(
     db: Connection<db::Db>,
     game_id: i64,
-) -> Result<Created<Json<GameResponse>>> {
-    let game = db::Game::reserve_by_id(db, game_id).await?;
-    let response = GameResponse::from(game);
+) -> Result<Created<Json<GameResponse>>, Status> {
+    let game = db::Game::reserve_by_id(db, game_id).await;
 
-    Ok(Created::new("/").body(Json(response)))
+    match game {
+        Ok(game) => {
+            let response = GameResponse::from(game);
+            // TODO: Fix path
+            Ok(Created::new("/").body(Json(response)))
+        }
+        _ => Err(Status::BadRequest),
+    }
 }
 
 #[delete("/<_>/games/<game_id>/reservations")]
 async fn release_game_at_location_by_id(
     db: Connection<db::Db>,
     game_id: i64,
-) -> Result<Json<GameResponse>> {
-    let game = db::Game::release_reservation_by_id(db, game_id).await?;
-    let response = GameResponse::from(game);
+) -> Result<Option<()>, Status> {
+    let game = db::Game::release_reservation_by_id(db, game_id).await;
 
-    Ok(Json(response))
+    match game {
+        Ok(_game) => Ok(Some(())),
+        _ => Err(Status::BadRequest),
+    }
 }
 
 pub fn stage() -> AdHoc {
