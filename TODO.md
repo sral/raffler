@@ -1,9 +1,7 @@
-- Removing location id from WHERE-clauses was a mistake. Ids are globally unique but all
-  need to be checked for the API to make sense. For example you can now access/mutate games through
-  URLs like /locations/{INVALID_ID,ANY_LOCATION_ID}/games/1 which makes no sense.
 - Improve API error handling, implement and document HTTP statuses.
     - Do we need an API error object to provide context around failures? Not yet maybe but in the future?
 - Spawn and pass transaction to db functions to allow composing/multiple queries in same transaction?
+- Revisit transactions (isolation level) in general, currently they mostly don't make sense
 - API needs to be revisted once we build frontend
     - Inconsistent responses (always echo state?)
 - Refactor db to re-use common queries etc... remove duplication... maybe... :reverse_shaking_fist:
