@@ -207,12 +207,13 @@ async fn get_games_by_location_id(
     }
 }
 
-#[get("/<_>/games/<game_id>")]
+#[get("/<location_id>/games/<game_id>")]
 async fn get_game_at_location_by_id(
     db: Connection<db::Db>,
+    location_id: i64,
     game_id: i64,
 ) -> Result<Json<GameWithNotesResponse>, Status> {
-    let game = db::Game::find_by_id(db, game_id).await;
+    let game = db::Game::find_by_id(db, game_id, location_id).await;
 
     match game {
         Ok(game) => Ok(Json(GameWithNotesResponse::from(game))),
@@ -249,18 +250,20 @@ async fn add_game_at_location(
 }
 
 #[put(
-    "/<_>/games/<game_id>",
+    "/<location_id>/games/<game_id>",
     format = "application/json",
     data = "<request>"
 )]
 async fn update_game_at_location(
     db: Connection<db::Db>,
     game_id: i64,
+    location_id: i64,
     request: Json<UpdateGameRequest>,
 ) -> Result<Json<GameResponse>, Status> {
     let game = db::Game::update_by_id(
         db,
         game_id,
+        location_id,
         request.name.to_owned(),
         request.abbreviation.to_owned(),
     )
@@ -272,12 +275,13 @@ async fn update_game_at_location(
     }
 }
 
-#[post("/<_>/games/<game_id>/disable")]
+#[post("/<location_id>/games/<game_id>/disable")]
 async fn disable_game_at_location_by_id(
     db: Connection<db::Db>,
+    location_id: i64,
     game_id: i64,
 ) -> Result<Json<GameResponse>, Status> {
-    let game = db::Game::disable_by_id(db, game_id).await;
+    let game = db::Game::disable_by_id(db, game_id, location_id).await;
 
     match game {
         Ok(game) => Ok(Json(GameResponse::from(game))),
@@ -285,12 +289,13 @@ async fn disable_game_at_location_by_id(
     }
 }
 
-#[post("/<_>/games/<game_id>/enable")]
+#[post("/<location_id>/games/<game_id>/enable")]
 async fn enable_game_at_location_by_id(
     db: Connection<db::Db>,
     game_id: i64,
+    location_id: i64,
 ) -> Result<Json<GameResponse>, Status> {
-    let game = db::Game::enable_by_id(db, game_id).await;
+    let game = db::Game::enable_by_id(db, game_id, location_id).await;
 
     match game {
         Ok(game) => Ok(Json(GameResponse::from(game))),
@@ -298,12 +303,13 @@ async fn enable_game_at_location_by_id(
     }
 }
 
-#[delete("/<_>/games/<game_id>")]
+#[delete("/<location_id>/games/<game_id>")]
 async fn delete_game_at_location_by_id(
     db: Connection<db::Db>,
     game_id: i64,
+    location_id: i64,
 ) -> Result<Option<()>, Status> {
-    let game = db::Game::delete_by_id(db, game_id).await;
+    let game = db::Game::delete_by_id(db, game_id, location_id).await;
 
     match game {
         Ok(_game) => Ok(Some(())),
@@ -321,6 +327,8 @@ async fn add_note_for_game_at_location(
     game_id: i64,
     request: Json<AddNoteRequest>,
 ) -> Result<Created<Json<NoteResponse>>, Status> {
+    // TODO API weirdeness: location id is not verified/used.
+
     let note = db::Note::add_by_game_id(db, game_id, request.note.to_owned()).await;
 
     match note {
@@ -338,6 +346,8 @@ async fn delete_note_for_game_by_id(
     db: Connection<db::Db>,
     note_id: i64,
 ) -> Result<Option<()>, Status> {
+    // TODO API weirdeness: location id is not verified/used.
+
     let note = db::Note::delete_by_id(db, note_id).await;
 
     match note {
@@ -346,12 +356,13 @@ async fn delete_note_for_game_by_id(
     }
 }
 
-#[post("/<_>/games/<game_id>/reservations")]
+#[post("/<location_id>/games/<game_id>/reservations")]
 async fn reserve_game_at_location_by_id(
     db: Connection<db::Db>,
     game_id: i64,
+    location_id: i64,
 ) -> Result<Created<Json<GameResponse>>, Status> {
-    let game = db::Game::reserve_by_id(db, game_id).await;
+    let game = db::Game::reserve_by_id(db, game_id, location_id).await;
 
     match game {
         Ok(game) => {
@@ -363,12 +374,13 @@ async fn reserve_game_at_location_by_id(
     }
 }
 
-#[delete("/<_>/games/<game_id>/reservations")]
+#[delete("/<location_id>/games/<game_id>/reservations")]
 async fn release_game_at_location_by_id(
     db: Connection<db::Db>,
     game_id: i64,
+    location_id: i64,
 ) -> Result<Option<()>, Status> {
-    let game = db::Game::release_reservation_by_id(db, game_id).await;
+    let game = db::Game::release_reservation_by_id(db, game_id, location_id).await;
 
     match game {
         Ok(_game) => Ok(Some(())),

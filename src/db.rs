@@ -143,15 +143,21 @@ pub struct Game {
 }
 
 impl Game {
-    pub async fn find_by_id(mut db: Connection<Db>, id: i64) -> Result<GameWithNotes> {
+    pub async fn find_by_id(
+        mut db: Connection<Db>,
+        id: i64,
+        location_id: i64,
+    ) -> Result<GameWithNotes> {
         let mut tx = db.begin().await?;
         let game = sqlx::query_as!(
             Game,
             r#"SELECT *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!"
                  FROM game
                 WHERE deleted_at IS NULL
-                  AND id = $1"#,
-            id
+                  AND id = $1
+                  AND location_id = $2"#,
+            id,
+            location_id
         )
         .fetch_one(&mut *tx)
         .await?;
@@ -196,10 +202,10 @@ impl Game {
             let notes = sqlx::query_as!(
                 Note,
                 r#"SELECT *
-                    FROM note
-                   WHERE deleted_at IS NULL
-                     AND game_id = $1
-                ORDER BY created_at ASC"#,
+                     FROM note
+                    WHERE deleted_at IS NULL
+                      AND game_id = $1
+                 ORDER BY created_at ASC"#,
                 g.id
             )
             .fetch(&mut *tx)
@@ -222,8 +228,8 @@ impl Game {
         let game = sqlx::query_as!(
             Game,
             r#"INSERT INTO game (location_id, name, abbreviation)
-               VALUES ($1, $2, $3)
-            RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
+                    VALUES ($1, $2, $3)
+                 RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
             location_id,
             name,
             abbreviation
@@ -238,6 +244,7 @@ impl Game {
     pub async fn update_by_id(
         mut db: Connection<Db>,
         id: i64,
+        location_id: i64,
         name: String,
         abbreviation: String,
     ) -> Result<Game> {
@@ -248,10 +255,12 @@ impl Game {
                   SET name = $1,
                       abbreviation = $2
                 WHERE id = $3
+                  AND location_id = $4
             RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
             name,
             abbreviation,
-            id
+            id,
+            location_id,
         )
         .fetch_one(&mut tx)
         .await?;
@@ -260,15 +269,17 @@ impl Game {
         Ok(game)
     }
 
-    pub async fn disable_by_id(mut db: Connection<Db>, id: i64) -> Result<Game> {
+    pub async fn disable_by_id(mut db: Connection<Db>, id: i64, location_id: i64) -> Result<Game> {
         let mut tx = db.begin().await?;
         let game = sqlx::query_as!(
             Game,
             r#"UPDATE game
                   SET disabled_at = now()
                 WHERE id = $1
+                  AND location_id = $2
             RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
             id,
+            location_id,
         )
         .fetch_one(&mut tx)
         .await?;
@@ -277,15 +288,17 @@ impl Game {
         Ok(game)
     }
 
-    pub async fn enable_by_id(mut db: Connection<Db>, id: i64) -> Result<Game> {
+    pub async fn enable_by_id(mut db: Connection<Db>, id: i64, location_id: i64) -> Result<Game> {
         let mut tx = db.begin().await?;
         let game = sqlx::query_as!(
             Game,
             r#"UPDATE game
                   SET disabled_at = NULL
                 WHERE id = $1
+                  AND location_id = $2
             RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
             id,
+            location_id,
         )
         .fetch_one(&mut tx)
         .await?;
@@ -294,7 +307,7 @@ impl Game {
         Ok(game)
     }
 
-    pub async fn delete_by_id(mut db: Connection<Db>, id: i64) -> Result<Game> {
+    pub async fn delete_by_id(mut db: Connection<Db>, id: i64, location_id: i64) -> Result<Game> {
         // - Potentially needs to mark related data as deleted?
         let mut tx = db.begin().await?;
         let game = sqlx::query_as!(
@@ -302,8 +315,10 @@ impl Game {
             r#"UPDATE game
                   SET deleted_at = now()
                 WHERE id = $1
+                  AND location_id = $2
             RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
-            id
+            id,
+            location_id,
         )
         .fetch_one(&mut tx)
         .await?;
@@ -312,15 +327,17 @@ impl Game {
         Ok(game)
     }
 
-    pub async fn reserve_by_id(mut db: Connection<Db>, id: i64) -> Result<Game> {
+    pub async fn reserve_by_id(mut db: Connection<Db>, id: i64, location_id: i64) -> Result<Game> {
         let mut tx = db.begin().await?;
         let game = sqlx::query_as!(
             Game,
             r#"UPDATE game
                   SET reserved_at = now()
                 WHERE id = $1
+                  AND location_id = $2
             RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
-            id
+            id,
+            location_id,
         )
         .fetch_one(&mut tx)
         .await?;
@@ -329,15 +346,21 @@ impl Game {
         Ok(game)
     }
 
-    pub async fn release_reservation_by_id(mut db: Connection<Db>, id: i64) -> Result<Game> {
+    pub async fn release_reservation_by_id(
+        mut db: Connection<Db>,
+        id: i64,
+        location_id: i64,
+    ) -> Result<Game> {
         let mut tx = db.begin().await?;
         let game = sqlx::query_as!(
             Game,
             r#"UPDATE game
                   SET reserved_at = NULL
                 WHERE id = $1
+                  AND location_id = $2
             RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
-            id
+            id,
+            location_id,
         )
         .fetch_one(&mut tx)
         .await?;
