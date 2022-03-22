@@ -455,27 +455,6 @@ impl Note {
         tx.commit().await?;
         Ok(note)
     }
-
-    // TODO: Ideally we'd like to compose functions in the API layer and use this rather than doing
-    // queries above when quering for games but I haven't been able to figure out how to do that yet.
-
-    // pub async fn find_by_game_id(mut db: Connection<Db>, id: i64) -> Result<Vec<Note>> {
-    //     let mut tx = db.begin().await?;
-    //     let notes = sqlx::query_as!(
-    //         Note,
-    //         r#"SELECT *
-    //              FROM note
-    //             WHERE deleted_at IS NULL
-    //               AND game_id = $1
-    //          ORDER BY created_at ASC"#,
-    //         id
-    //     )
-    //     .fetch(&mut tx)
-    //     .try_collect::<Vec<_>>()
-    //     .await?;
-
-    //     Ok(notes)
-    // }
 }
 
 async fn run_migrations(rocket: Rocket<Build>) -> fairing::Result {
