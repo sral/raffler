@@ -346,6 +346,44 @@ impl Game {
         Ok(game)
     }
 
+    pub async fn reserve_random_by_location_id(
+        mut db: Connection<Db>,
+        location_id: i64,
+    ) -> Result<Game> {
+        let mut tx = db.begin().await?;
+
+        let game = sqlx::query_as!(
+            Game,
+            r#"SELECT *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!"
+                 FROM game
+                WHERE deleted_at IS NULL
+                  AND disabled_at IS NULL
+                  AND reserved_at IS NULL
+                  AND location_id = $1
+             ORDER BY random() FOR UPDATE
+                LIMIT 1"#,
+             location_id
+        )
+        .fetch_one(&mut tx)
+        .await?;
+
+        let game = sqlx::query_as!(
+            Game,
+            r#"UPDATE game
+                  SET reserved_at = now()
+                WHERE id = $1
+                  AND location_id = $2
+            RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
+            game.id,
+            location_id,
+        )
+        .fetch_one(&mut tx)
+        .await?;
+
+        tx.commit().await?;
+        Ok(game)
+    }
+
     pub async fn release_reservation_by_id(
         mut db: Connection<Db>,
         id: i64,

@@ -374,6 +374,23 @@ async fn reserve_game_at_location_by_id(
     }
 }
 
+#[post("/<location_id>/games/reservations")]
+async fn reserve_random_game_at_location(
+    db: Connection<db::Db>,
+    location_id: i64,
+) -> Result<Created<Json<GameResponse>>, Status> {
+    let game = db::Game::reserve_random_by_location_id(db, location_id).await;
+
+    match game {
+        Ok(game) => {
+            let response = GameResponse::from(game);
+            // TODO: Fix path
+            Ok(Created::new("/").body(Json(response)))
+        }
+        _ => Err(Status::NotFound),
+    }
+}
+
 #[delete("/<location_id>/games/<game_id>/reservations")]
 async fn release_game_at_location_by_id(
     db: Connection<db::Db>,
@@ -407,6 +424,7 @@ pub fn stage() -> AdHoc {
                 add_note_for_game_at_location,
                 delete_note_for_game_by_id,
                 reserve_game_at_location_by_id,
+                reserve_random_game_at_location,
                 release_game_at_location_by_id,
             ],
         )
