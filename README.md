@@ -67,4 +67,4 @@ Useful commands for testing service/API locally.
 `curl -X POST http://localhost:8000/v1/locations/1/games/reservations`
 
 ##### Release reservation for game at location
-`curl -X POST http://localhost:8000/v1/locations/1/games/1/reservations`
+`curl -X DELETE http://localhost:8000/v1/locations/1/games/1/reservations`

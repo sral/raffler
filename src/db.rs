@@ -74,7 +74,7 @@ impl Location {
             Location,
             r#"UPDATE location
                   SET deleted_at = now()
-                WHERE deleted_at = NULL
+                WHERE deleted_at IS NULL
                   AND id = $1
             RETURNING *"#,
             id
@@ -85,7 +85,7 @@ impl Location {
         let _result = sqlx::query!(
             r#"UPDATE game
                   SET deleted_at = now()
-                WHERE deleted_at = NULL
+                WHERE deleted_at IS NULL
                   AND location_id = $1"#,
             id
         )
@@ -97,8 +97,8 @@ impl Location {
                   SET deleted_at = now()
                  FROM game
                 WHERE game.id=note.game_id
-                  AND note.deleted_at = NULL
-                  AND game.deleted_at = NULL
+                  AND note.deleted_at IS NULL
+                  AND game.deleted_at IS NULL
                   AND game.location_id = $1"#,
             id
         )
@@ -355,7 +355,7 @@ impl Game {
                   SET reserved_at = now()
                 WHERE id = $1
                   AND location_id = $2
-                  AND reserved_at = NULL
+                  AND reserved_at IS NULL
             RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
             id,
             location_id,
@@ -461,7 +461,7 @@ impl Note {
             r#"UPDATE note
                   SET deleted_at = now()
                 WHERE id = $1
-                  AND deleted_at = NULL
+                  AND deleted_at IS NULL
             RETURNING *"#,
             id
         )
