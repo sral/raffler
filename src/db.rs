@@ -26,22 +26,19 @@ pub struct Location {
 
 impl Location {
     pub async fn find_all(mut db: Connection<Db>) -> Result<Vec<Location>> {
-        let mut tx = db.begin().await?;
         let locations = sqlx::query_as!(
             Location,
             r#"SELECT * FROM location
                 WHERE deleted_at IS NULL"#
         )
-        .fetch(&mut tx)
+        .fetch(&mut *db)
         .try_collect::<Vec<_>>()
         .await?;
 
-        tx.commit().await?;
         Ok(locations)
     }
 
     pub async fn find_by_id(mut db: Connection<Db>, id: i64) -> Result<Location> {
-        let mut tx = db.begin().await?;
         let location = sqlx::query_as!(
             Location,
             r#"SELECT *
@@ -50,15 +47,13 @@ impl Location {
                   AND id = $1"#,
             id
         )
-        .fetch_one(&mut tx)
+        .fetch_one(&mut *db)
         .await?;
 
-        tx.commit().await?;
         Ok(location)
     }
 
     pub async fn add(mut db: Connection<Db>, name: String) -> Result<Location> {
-        let mut tx = db.begin().await?;
         let location = sqlx::query_as!(
             Location,
             "INSERT INTO location (name)
@@ -66,10 +61,8 @@ impl Location {
                RETURNING *",
             name
         )
-        .fetch_one(&mut tx)
+        .fetch_one(&mut *db)
         .await?;
-
-        tx.commit().await?;
 
         Ok(location)
     }
@@ -81,15 +74,38 @@ impl Location {
             Location,
             r#"UPDATE location
                   SET deleted_at = now()
-                WHERE id = $1
+                WHERE deleted_at = NULL
+                  AND id = $1
             RETURNING *"#,
             id
         )
         .fetch_one(&mut tx)
         .await?;
 
-        tx.commit().await?;
+        let _result = sqlx::query!(
+            r#"UPDATE game
+                  SET deleted_at = now()
+                WHERE deleted_at = NULL
+                  AND location_id = $1"#,
+            id
+        )
+        .execute(&mut *tx)
+        .await?;
 
+        let _result = sqlx::query!(
+            r#"UPDATE note
+                  SET deleted_at = now()
+                 FROM game
+                WHERE game.id=note.game_id
+                  AND note.deleted_at = NULL
+                  AND game.deleted_at = NULL
+                  AND game.location_id = $1"#,
+            id
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
         Ok(location)
     }
 }
@@ -186,9 +202,12 @@ impl Game {
         let mut tx = db.begin().await?;
         let games = sqlx::query_as!(
             Game,
-            r#"SELECT *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!"
+            r#"SELECT game.*, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!"
                  FROM game
-                WHERE deleted_at IS NULL
+                 JOIN location
+                   ON location.id = game.location_id
+                WHERE game.deleted_at IS NULL
+                  AND location.deleted_at IS NULL
                   AND location_id = $1
              ORDER BY abbreviation ASC"#,
             id
@@ -224,7 +243,6 @@ impl Game {
         name: String,
         abbreviation: String,
     ) -> Result<Game> {
-        let mut tx = db.begin().await?;
         let game = sqlx::query_as!(
             Game,
             r#"INSERT INTO game (location_id, name, abbreviation)
@@ -234,10 +252,9 @@ impl Game {
             name,
             abbreviation
         )
-        .fetch_one(&mut tx)
+        .fetch_one(&mut *db)
         .await?;
 
-        tx.commit().await?;
         Ok(game)
     }
 
@@ -248,7 +265,6 @@ impl Game {
         name: String,
         abbreviation: String,
     ) -> Result<Game> {
-        let mut tx = db.begin().await?;
         let game = sqlx::query_as!(
             Game,
             r#"UPDATE game
@@ -262,15 +278,13 @@ impl Game {
             id,
             location_id,
         )
-        .fetch_one(&mut tx)
+        .fetch_one(&mut *db)
         .await?;
 
-        tx.commit().await?;
         Ok(game)
     }
 
     pub async fn disable_by_id(mut db: Connection<Db>, id: i64, location_id: i64) -> Result<Game> {
-        let mut tx = db.begin().await?;
         let game = sqlx::query_as!(
             Game,
             r#"UPDATE game
@@ -281,15 +295,13 @@ impl Game {
             id,
             location_id,
         )
-        .fetch_one(&mut tx)
+        .fetch_one(&mut *db)
         .await?;
 
-        tx.commit().await?;
         Ok(game)
     }
 
     pub async fn enable_by_id(mut db: Connection<Db>, id: i64, location_id: i64) -> Result<Game> {
-        let mut tx = db.begin().await?;
         let game = sqlx::query_as!(
             Game,
             r#"UPDATE game
@@ -300,16 +312,15 @@ impl Game {
             id,
             location_id,
         )
-        .fetch_one(&mut tx)
+        .fetch_one(&mut *db)
         .await?;
 
-        tx.commit().await?;
         Ok(game)
     }
 
     pub async fn delete_by_id(mut db: Connection<Db>, id: i64, location_id: i64) -> Result<Game> {
-        // - Potentially needs to mark related data as deleted?
         let mut tx = db.begin().await?;
+
         let game = sqlx::query_as!(
             Game,
             r#"UPDATE game
@@ -320,7 +331,17 @@ impl Game {
             id,
             location_id,
         )
-        .fetch_one(&mut tx)
+        .fetch_one(&mut *tx)
+        .await?;
+
+        let _result = sqlx::query!(
+            r#"UPDATE note
+                  SET deleted_at = now()
+                WHERE game_id = $1
+                  AND deleted_at = NULL"#,
+            id,
+        )
+        .execute(&mut *tx)
         .await?;
 
         tx.commit().await?;
@@ -328,21 +349,20 @@ impl Game {
     }
 
     pub async fn reserve_by_id(mut db: Connection<Db>, id: i64, location_id: i64) -> Result<Game> {
-        let mut tx = db.begin().await?;
         let game = sqlx::query_as!(
             Game,
             r#"UPDATE game
                   SET reserved_at = now()
                 WHERE id = $1
                   AND location_id = $2
+                  AND reserved_at = NULL
             RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
             id,
             location_id,
         )
-        .fetch_one(&mut tx)
+        .fetch_one(&mut *db)
         .await?;
 
-        tx.commit().await?;
         Ok(game)
     }
 
@@ -389,7 +409,6 @@ impl Game {
         id: i64,
         location_id: i64,
     ) -> Result<Game> {
-        let mut tx = db.begin().await?;
         let game = sqlx::query_as!(
             Game,
             r#"UPDATE game
@@ -400,10 +419,9 @@ impl Game {
             id,
             location_id,
         )
-        .fetch_one(&mut tx)
+        .fetch_one(&mut *db)
         .await?;
 
-        tx.commit().await?;
         Ok(game)
     }
 }
@@ -423,7 +441,6 @@ pub struct Note {
 impl Note {
     pub async fn add_by_game_id(mut db: Connection<Db>, id: i64, note: String) -> Result<Note> {
         // TODO: PlayerId needs to come from authorization/sessions.
-        let mut tx = db.begin().await?;
         let note = sqlx::query_as!(
             Note,
             r#"INSERT INTO note (note, game_id)
@@ -432,27 +449,25 @@ impl Note {
             note,
             id,
         )
-        .fetch_one(&mut tx)
+        .fetch_one(&mut *db)
         .await?;
 
-        tx.commit().await?;
         Ok(note)
     }
 
     pub async fn delete_by_id(mut db: Connection<Db>, id: i64) -> Result<Note> {
-        let mut tx = db.begin().await?;
         let note = sqlx::query_as!(
             Note,
             r#"UPDATE note
                   SET deleted_at = now()
                 WHERE id = $1
+                  AND deleted_at = NULL
             RETURNING *"#,
             id
         )
-        .fetch_one(&mut tx)
+        .fetch_one(&mut *db)
         .await?;
 
-        tx.commit().await?;
         Ok(note)
     }
 }

@@ -1,7 +1,7 @@
 - Improve API error handling, implement and document HTTP statuses.
     - Do we need an API error object to provide context around failures? Not yet maybe but in the future?
 - Spawn and pass transaction to db functions to allow composing/multiple queries in same transaction?
-- Revisit transactions (isolation level) in general, currently they mostly don't make sense
+- Can we compose and move GameWithNotes up to API layer only?
 - API needs to be revisted once we build frontend
     - Inconsistent responses (always echo state?)
 - Refactor db to re-use common queries etc... remove duplication... maybe... :reverse_shaking_fist:
