@@ -169,9 +169,9 @@ async fn add_location(
 
     match location {
         Ok(location) => {
+            let path = format!("/v1/locations/{}", location.id);
             let response = LocationResponse::from(location);
-            // TODO: Fix path
-            Ok(Created::new("/").body(Json(response)))
+            Ok(Created::new(path).body(Json(response)))
         }
         _ => Err(Status::BadRequest),
     }
@@ -241,9 +241,9 @@ async fn add_game_at_location(
 
     match game {
         Ok(game) => {
+            let path = format!("/v1/locations/{}/games/{}", location_id, game.id);
             let response = GameResponse::from(game);
-            // TODO: Fix path
-            Ok(Created::new("/").body(Json(response)))
+            Ok(Created::new(path).body(Json(response)))
         }
         _ => Err(Status::BadRequest),
     }
@@ -318,24 +318,27 @@ async fn delete_game_at_location_by_id(
 }
 
 #[post(
-    "/<_>/games/<game_id>/notes",
+    "/<location_id>/games/<game_id>/notes",
     format = "application/json",
     data = "<request>"
 )]
 async fn add_note_for_game_at_location(
     db: Connection<db::Db>,
+    location_id: i64,
     game_id: i64,
     request: Json<AddNoteRequest>,
 ) -> Result<Created<Json<NoteResponse>>, Status> {
     // TODO API weirdeness: location id is not verified/used.
-
     let note = db::Note::add_by_game_id(db, game_id, request.note.to_owned()).await;
 
     match note {
         Ok(note) => {
+            let path = format!(
+                "/v1/locations/{}/games/{}/notes/{}",
+                location_id, game_id, note.id
+            );
             let response = NoteResponse::from(note);
-            // TODO: Fix path
-            Ok(Created::new("/").body(Json(response)))
+            Ok(Created::new(path).body(Json(response)))
         }
         _ => Err(Status::BadRequest),
     }
@@ -366,9 +369,9 @@ async fn reserve_game_at_location_by_id(
 
     match game {
         Ok(game) => {
+            let path = format!("/v1/locations/{}/games/{}", location_id, game.id);
             let response = GameResponse::from(game);
-            // TODO: Fix path
-            Ok(Created::new("/").body(Json(response)))
+            Ok(Created::new(path).body(Json(response)))
         }
         _ => Err(Status::BadRequest),
     }
@@ -383,9 +386,9 @@ async fn reserve_random_game_at_location(
 
     match game {
         Ok(game) => {
+            let path = format!("/v1/locations/{}/games/{}", location_id, game.id);
             let response = GameResponse::from(game);
-            // TODO: Fix path
-            Ok(Created::new("/").body(Json(response)))
+            Ok(Created::new(path).body(Json(response)))
         }
         _ => Err(Status::NotFound),
     }
