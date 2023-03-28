@@ -1,5 +1,6 @@
 .vscode/
 /target
+/tmp
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal

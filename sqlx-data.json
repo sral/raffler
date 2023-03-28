@@ -1,6 +1,6 @@
 {
   "db": "PostgreSQL",
-  "06634d2d67386df81b22f82185b0968617e839ac4c09256dd64b11b3fb1ef6be": {
+  "0c91a5336c3106af9f532098b3b8dc8cc998c6546511d18ed2dedcb72b8499ec": {
     "describe": {
       "columns": [
         {
@@ -66,9 +66,9 @@
         ]
       }
     },
-    "query": "SELECT *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as \"reserved_minutes!\"\n                 FROM game\n                WHERE deleted_at IS NULL\n                  AND id = $1"
+    "query": "SELECT game.*, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as \"reserved_minutes!\"\n                 FROM game\n                 JOIN location\n                   ON location.id = game.location_id\n                WHERE game.deleted_at IS NULL\n                  AND location.deleted_at IS NULL\n                  AND location_id = $1\n             ORDER BY abbreviation ASC"
   },
-  "0ca24769bfa08fb08c2aff95777eafc9d4d97745f17066e0c9d3601c398d17d7": {
+  "0cccb79fb464ca0bba056a8d3177a9aff8b451090762b89ff6259ead7181b2eb": {
     "describe": {
       "columns": [
         {
@@ -77,34 +77,77 @@
           "type_info": "Int8"
         },
         {
-          "name": "name",
+          "name": "location_id",
           "ordinal": 1,
+          "type_info": "Int8"
+        },
+        {
+          "name": "name",
+          "ordinal": 2,
           "type_info": "Text"
         },
         {
-          "name": "created_at",
-          "ordinal": 2,
-          "type_info": "Timestamp"
+          "name": "abbreviation",
+          "ordinal": 3,
+          "type_info": "Text"
         },
         {
           "name": "deleted_at",
-          "ordinal": 3,
+          "ordinal": 4,
           "type_info": "Timestamp"
+        },
+        {
+          "name": "disabled_at",
+          "ordinal": 5,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "reserved_at",
+          "ordinal": 6,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "created_at",
+          "ordinal": 7,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "reserved_minutes!",
+          "ordinal": 8,
+          "type_info": "Int4"
         }
       ],
       "nullable": [
         false,
         false,
         false,
-        true
+        false,
+        true,
+        true,
+        true,
+        false,
+        null
       ],
+      "parameters": {
+        "Left": [
+          "Int8",
+          "Int8"
+        ]
+      }
+    },
+    "query": "SELECT *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as \"reserved_minutes!\"\n                 FROM game\n                WHERE deleted_at IS NULL\n                  AND id = $1\n                  AND location_id = $2"
+  },
+  "1fe463a984455a00160cae61b6867d083edcfdbed834fa98fce93845fd424158": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
       "parameters": {
         "Left": [
           "Int8"
         ]
       }
     },
-    "query": "UPDATE location\n                  SET deleted_at = now()\n                WHERE id = $1\n            RETURNING *"
+    "query": "UPDATE game\n                  SET deleted_at = now()\n                WHERE deleted_at IS NULL\n                  AND location_id = $1"
   },
   "2b2cbb110be7eaa700466132830101d0dfd1a707ddab86306a203342d6bd06f9": {
     "describe": {
@@ -142,7 +185,7 @@
     },
     "query": "SELECT * FROM location\n                WHERE deleted_at IS NULL"
   },
-  "3cad75f03c7af4f2061e48f294d8da0691bdd5459c96288805a2385ee213ff9d": {
+  "37dbef1d6d32a8b0f4ec096a45111f784a1838598e3d3cc0007a8499e748eb1d": {
     "describe": {
       "columns": [
         {
@@ -204,61 +247,12 @@
       ],
       "parameters": {
         "Left": [
+          "Int8",
           "Int8"
         ]
       }
     },
-    "query": "SELECT *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as \"reserved_minutes!\"\n                 FROM game\n                WHERE deleted_at IS NULL\n                  AND location_id = $1\n             ORDER BY abbreviation ASC"
-  },
-  "492a8a739bd92f71018d480b95d413ab14b55ee9a8e0caefca3c75b750220d09": {
-    "describe": {
-      "columns": [
-        {
-          "name": "id",
-          "ordinal": 0,
-          "type_info": "Int8"
-        },
-        {
-          "name": "game_id",
-          "ordinal": 1,
-          "type_info": "Int8"
-        },
-        {
-          "name": "player_id",
-          "ordinal": 2,
-          "type_info": "Int8"
-        },
-        {
-          "name": "note",
-          "ordinal": 3,
-          "type_info": "Text"
-        },
-        {
-          "name": "deleted_at",
-          "ordinal": 4,
-          "type_info": "Timestamp"
-        },
-        {
-          "name": "created_at",
-          "ordinal": 5,
-          "type_info": "Timestamp"
-        }
-      ],
-      "nullable": [
-        false,
-        false,
-        true,
-        false,
-        true,
-        false
-      ],
-      "parameters": {
-        "Left": [
-          "Int8"
-        ]
-      }
-    },
-    "query": "SELECT *\n                    FROM note\n                   WHERE deleted_at IS NULL\n                     AND game_id = $1\n                ORDER BY created_at ASC"
+    "query": "UPDATE game\n                  SET disabled_at = NULL\n                WHERE id = $1\n                  AND location_id = $2\n            RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as \"reserved_minutes!\""
   },
   "4e107dcbff73a76d164fbbe588a3d09d59b9266a0ca5c9320d8cae70417693cc": {
     "describe": {
@@ -298,7 +292,206 @@
     },
     "query": "SELECT *\n                 FROM location\n                WHERE deleted_at IS NULL\n                  AND id = $1"
   },
-  "5a40533dbcc9d3ad999b44393631326fb5945e012d5a996cd38504f6f3db49df": {
+  "4e2a7cb44bf29eeb29287e4e3dbc78a94dbdc72da8ace9895b115997e4b9fab7": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int8"
+        },
+        {
+          "name": "location_id",
+          "ordinal": 1,
+          "type_info": "Int8"
+        },
+        {
+          "name": "name",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "abbreviation",
+          "ordinal": 3,
+          "type_info": "Text"
+        },
+        {
+          "name": "deleted_at",
+          "ordinal": 4,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "disabled_at",
+          "ordinal": 5,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "reserved_at",
+          "ordinal": 6,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "created_at",
+          "ordinal": 7,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "reserved_minutes!",
+          "ordinal": 8,
+          "type_info": "Int4"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        true,
+        true,
+        true,
+        false,
+        null
+      ],
+      "parameters": {
+        "Left": [
+          "Int8",
+          "Int8"
+        ]
+      }
+    },
+    "query": "UPDATE game\n                  SET reserved_at = NULL\n                WHERE id = $1\n                  AND location_id = $2\n            RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as \"reserved_minutes!\""
+  },
+  "5b8d19f26b2e85ebc60b7bcbcfad67878555b448d7e6029ee9d455b07aa3f0b7": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int8"
+        },
+        {
+          "name": "location_id",
+          "ordinal": 1,
+          "type_info": "Int8"
+        },
+        {
+          "name": "name",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "abbreviation",
+          "ordinal": 3,
+          "type_info": "Text"
+        },
+        {
+          "name": "deleted_at",
+          "ordinal": 4,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "disabled_at",
+          "ordinal": 5,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "reserved_at",
+          "ordinal": 6,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "created_at",
+          "ordinal": 7,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "reserved_minutes!",
+          "ordinal": 8,
+          "type_info": "Int4"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        true,
+        true,
+        true,
+        false,
+        null
+      ],
+      "parameters": {
+        "Left": [
+          "Int8"
+        ]
+      }
+    },
+    "query": "SELECT *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as \"reserved_minutes!\"\n                 FROM game\n                WHERE deleted_at IS NULL\n                  AND disabled_at IS NULL\n                  AND reserved_at IS NULL\n                  AND location_id = $1\n             ORDER BY random() FOR UPDATE\n                LIMIT 1"
+  },
+  "5fee8d099819ecc6c1122099e7b23be5f1a6b99298d50b171a3389c2d17197a8": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int8"
+        },
+        {
+          "name": "name",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "created_at",
+          "ordinal": 2,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "deleted_at",
+          "ordinal": 3,
+          "type_info": "Timestamp"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        true
+      ],
+      "parameters": {
+        "Left": [
+          "Text"
+        ]
+      }
+    },
+    "query": "INSERT INTO location (name)\n                  VALUES ($1)\n               RETURNING *"
+  },
+  "7805cf769d4466925f61f3268607c8402658454d57497af2fcc19b0b91ed5883": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Int8"
+        ]
+      }
+    },
+    "query": "UPDATE note\n                  SET deleted_at = now()\n                WHERE game_id = $1\n                  AND deleted_at = NULL"
+  },
+  "9920500df2789bb28dd8483da4afbc9830d320e87bcb0f27acced177c6a6283e": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Int8"
+        ]
+      }
+    },
+    "query": "UPDATE note\n                  SET deleted_at = now()\n                 FROM game\n                WHERE game.id=note.game_id\n                  AND note.deleted_at IS NULL\n                  AND game.deleted_at IS NULL\n                  AND game.location_id = $1"
+  },
+  "99d47ac68d7397a6ed96876628ced9af2d408bdcbd2658aac948f324d14e85f7": {
     "describe": {
       "columns": [
         {
@@ -346,9 +539,80 @@
         ]
       }
     },
-    "query": "UPDATE note\n                  SET deleted_at = now()\n                WHERE id = $1\n            RETURNING *"
+    "query": "SELECT *\n                     FROM note\n                    WHERE deleted_at IS NULL\n                      AND game_id = $1\n                 ORDER BY created_at ASC"
   },
-  "5fee8d099819ecc6c1122099e7b23be5f1a6b99298d50b171a3389c2d17197a8": {
+  "9adbf09afb22ac944ac03a2dc3d54ed743b08f92198bc6c5e3e1ad36ed4e5cdb": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int8"
+        },
+        {
+          "name": "location_id",
+          "ordinal": 1,
+          "type_info": "Int8"
+        },
+        {
+          "name": "name",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "abbreviation",
+          "ordinal": 3,
+          "type_info": "Text"
+        },
+        {
+          "name": "deleted_at",
+          "ordinal": 4,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "disabled_at",
+          "ordinal": 5,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "reserved_at",
+          "ordinal": 6,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "created_at",
+          "ordinal": 7,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "reserved_minutes!",
+          "ordinal": 8,
+          "type_info": "Int4"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        true,
+        true,
+        true,
+        false,
+        null
+      ],
+      "parameters": {
+        "Left": [
+          "Text",
+          "Text",
+          "Int8",
+          "Int8"
+        ]
+      }
+    },
+    "query": "UPDATE game\n                  SET name = $1,\n                      abbreviation = $2\n                WHERE id = $3\n                  AND location_id = $4\n            RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as \"reserved_minutes!\""
+  },
+  "b23136849de1719444a196d5a8c1a823d1bdc9491fa90dfb62edabefdad68a80": {
     "describe": {
       "columns": [
         {
@@ -380,13 +644,390 @@
       ],
       "parameters": {
         "Left": [
-          "Text"
+          "Int8"
         ]
       }
     },
-    "query": "INSERT INTO location (name)\n                  VALUES ($1)\n               RETURNING *"
+    "query": "UPDATE location\n                  SET deleted_at = now()\n                WHERE deleted_at IS NULL\n                  AND id = $1\n            RETURNING *"
   },
-  "85319ef3ed08cfa589a18114e15313bacb2253955d0acbf988f41c03b5321799": {
+  "b25a6382d0e1e2f84caf0dde054cadbd41a624145c979d66af797d72d972160f": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int8"
+        },
+        {
+          "name": "location_id",
+          "ordinal": 1,
+          "type_info": "Int8"
+        },
+        {
+          "name": "name",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "abbreviation",
+          "ordinal": 3,
+          "type_info": "Text"
+        },
+        {
+          "name": "deleted_at",
+          "ordinal": 4,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "disabled_at",
+          "ordinal": 5,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "reserved_at",
+          "ordinal": 6,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "created_at",
+          "ordinal": 7,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "reserved_minutes!",
+          "ordinal": 8,
+          "type_info": "Int4"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        true,
+        true,
+        true,
+        false,
+        null
+      ],
+      "parameters": {
+        "Left": [
+          "Int8",
+          "Int8"
+        ]
+      }
+    },
+    "query": "UPDATE game\n                  SET reserved_at = now()\n                WHERE id = $1\n                  AND location_id = $2\n                  AND reserved_at IS NULL\n            RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as \"reserved_minutes!\""
+  },
+  "b88b990f2a6ebfdfb8544c39a2b737eba1aad6dc7a53ca14bb202a2d8e943dab": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int8"
+        },
+        {
+          "name": "location_id",
+          "ordinal": 1,
+          "type_info": "Int8"
+        },
+        {
+          "name": "name",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "abbreviation",
+          "ordinal": 3,
+          "type_info": "Text"
+        },
+        {
+          "name": "deleted_at",
+          "ordinal": 4,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "disabled_at",
+          "ordinal": 5,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "reserved_at",
+          "ordinal": 6,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "created_at",
+          "ordinal": 7,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "reserved_minutes!",
+          "ordinal": 8,
+          "type_info": "Int4"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        true,
+        true,
+        true,
+        false,
+        null
+      ],
+      "parameters": {
+        "Left": [
+          "Int8",
+          "Int8"
+        ]
+      }
+    },
+    "query": "UPDATE game\n                  SET deleted_at = now()\n                WHERE id = $1\n                  AND location_id = $2\n            RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as \"reserved_minutes!\""
+  },
+  "c62a5cae54367e1a311aed24eb3307c1dcfb9bbf31b308009300acddc15eb40a": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int8"
+        },
+        {
+          "name": "game_id",
+          "ordinal": 1,
+          "type_info": "Int8"
+        },
+        {
+          "name": "player_id",
+          "ordinal": 2,
+          "type_info": "Int8"
+        },
+        {
+          "name": "note",
+          "ordinal": 3,
+          "type_info": "Text"
+        },
+        {
+          "name": "deleted_at",
+          "ordinal": 4,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "created_at",
+          "ordinal": 5,
+          "type_info": "Timestamp"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        true,
+        false,
+        true,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Int8"
+        ]
+      }
+    },
+    "query": "SELECT *\n                 FROM note\n                WHERE deleted_at IS NULL\n                  AND game_id = $1\n                ORDER BY created_at ASC"
+  },
+  "ca627e5059e6fe481c6a681b34ad97103f43691991fb1fbd0895c19975564086": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int8"
+        },
+        {
+          "name": "location_id",
+          "ordinal": 1,
+          "type_info": "Int8"
+        },
+        {
+          "name": "name",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "abbreviation",
+          "ordinal": 3,
+          "type_info": "Text"
+        },
+        {
+          "name": "deleted_at",
+          "ordinal": 4,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "disabled_at",
+          "ordinal": 5,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "reserved_at",
+          "ordinal": 6,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "created_at",
+          "ordinal": 7,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "reserved_minutes!",
+          "ordinal": 8,
+          "type_info": "Int4"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        true,
+        true,
+        true,
+        false,
+        null
+      ],
+      "parameters": {
+        "Left": [
+          "Int8",
+          "Int8"
+        ]
+      }
+    },
+    "query": "UPDATE game\n                  SET reserved_at = now()\n                WHERE id = $1\n                  AND location_id = $2\n            RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as \"reserved_minutes!\""
+  },
+  "d8009d4dcd2eaf749542f3cad710d6eafaab9e4f1a92eb98dc941a533ac19a68": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int8"
+        },
+        {
+          "name": "location_id",
+          "ordinal": 1,
+          "type_info": "Int8"
+        },
+        {
+          "name": "name",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "abbreviation",
+          "ordinal": 3,
+          "type_info": "Text"
+        },
+        {
+          "name": "deleted_at",
+          "ordinal": 4,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "disabled_at",
+          "ordinal": 5,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "reserved_at",
+          "ordinal": 6,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "created_at",
+          "ordinal": 7,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "reserved_minutes!",
+          "ordinal": 8,
+          "type_info": "Int4"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        true,
+        true,
+        true,
+        false,
+        null
+      ],
+      "parameters": {
+        "Left": [
+          "Int8",
+          "Int8"
+        ]
+      }
+    },
+    "query": "UPDATE game\n                  SET disabled_at = now()\n                WHERE id = $1\n                  AND location_id = $2\n            RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as \"reserved_minutes!\""
+  },
+  "d9067d56854f63223e0aba5881915bcda8972f100ef0dc9d370b3aca8f98c80f": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int8"
+        },
+        {
+          "name": "game_id",
+          "ordinal": 1,
+          "type_info": "Int8"
+        },
+        {
+          "name": "player_id",
+          "ordinal": 2,
+          "type_info": "Int8"
+        },
+        {
+          "name": "note",
+          "ordinal": 3,
+          "type_info": "Text"
+        },
+        {
+          "name": "deleted_at",
+          "ordinal": 4,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "created_at",
+          "ordinal": 5,
+          "type_info": "Timestamp"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        true,
+        false,
+        true,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Text",
+          "Int8"
+        ]
+      }
+    },
+    "query": "INSERT INTO note (note, game_id)\n                    VALUES ($1, $2)\n                 RETURNING *"
+  },
+  "e6df5f22376eb6333adc11862d3f39a1d5ea4b154270ea853e7eb46b73133026": {
     "describe": {
       "columns": [
         {
@@ -454,213 +1095,9 @@
         ]
       }
     },
-    "query": "INSERT INTO game (location_id, name, abbreviation)\n               VALUES ($1, $2, $3)\n            RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as \"reserved_minutes!\""
+    "query": "INSERT INTO game (location_id, name, abbreviation)\n                    VALUES ($1, $2, $3)\n                 RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as \"reserved_minutes!\""
   },
-  "9c454bbec7f48e81df6d22c5f5d0eb332163bd91a226b7c7c826c8365599d740": {
-    "describe": {
-      "columns": [
-        {
-          "name": "id",
-          "ordinal": 0,
-          "type_info": "Int8"
-        },
-        {
-          "name": "location_id",
-          "ordinal": 1,
-          "type_info": "Int8"
-        },
-        {
-          "name": "name",
-          "ordinal": 2,
-          "type_info": "Text"
-        },
-        {
-          "name": "abbreviation",
-          "ordinal": 3,
-          "type_info": "Text"
-        },
-        {
-          "name": "deleted_at",
-          "ordinal": 4,
-          "type_info": "Timestamp"
-        },
-        {
-          "name": "disabled_at",
-          "ordinal": 5,
-          "type_info": "Timestamp"
-        },
-        {
-          "name": "reserved_at",
-          "ordinal": 6,
-          "type_info": "Timestamp"
-        },
-        {
-          "name": "created_at",
-          "ordinal": 7,
-          "type_info": "Timestamp"
-        },
-        {
-          "name": "reserved_minutes!",
-          "ordinal": 8,
-          "type_info": "Int4"
-        }
-      ],
-      "nullable": [
-        false,
-        false,
-        false,
-        false,
-        true,
-        true,
-        true,
-        false,
-        null
-      ],
-      "parameters": {
-        "Left": [
-          "Int8"
-        ]
-      }
-    },
-    "query": "UPDATE game\n                  SET disabled_at = NULL\n                WHERE id = $1\n            RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as \"reserved_minutes!\""
-  },
-  "ab3b29fcd8bccbe4da6d37bb8ee135be1cb56e8dd1f8a741ee896fccd9f0d9d2": {
-    "describe": {
-      "columns": [
-        {
-          "name": "id",
-          "ordinal": 0,
-          "type_info": "Int8"
-        },
-        {
-          "name": "location_id",
-          "ordinal": 1,
-          "type_info": "Int8"
-        },
-        {
-          "name": "name",
-          "ordinal": 2,
-          "type_info": "Text"
-        },
-        {
-          "name": "abbreviation",
-          "ordinal": 3,
-          "type_info": "Text"
-        },
-        {
-          "name": "deleted_at",
-          "ordinal": 4,
-          "type_info": "Timestamp"
-        },
-        {
-          "name": "disabled_at",
-          "ordinal": 5,
-          "type_info": "Timestamp"
-        },
-        {
-          "name": "reserved_at",
-          "ordinal": 6,
-          "type_info": "Timestamp"
-        },
-        {
-          "name": "created_at",
-          "ordinal": 7,
-          "type_info": "Timestamp"
-        },
-        {
-          "name": "reserved_minutes!",
-          "ordinal": 8,
-          "type_info": "Int4"
-        }
-      ],
-      "nullable": [
-        false,
-        false,
-        false,
-        false,
-        true,
-        true,
-        true,
-        false,
-        null
-      ],
-      "parameters": {
-        "Left": [
-          "Int8"
-        ]
-      }
-    },
-    "query": "UPDATE game\n                  SET reserved_at = now()\n                WHERE id = $1\n            RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as \"reserved_minutes!\""
-  },
-  "b477d64d6af5ebcb2b3200230d1dd87f97fec1f56cab1fcc04177690d464f8f8": {
-    "describe": {
-      "columns": [
-        {
-          "name": "id",
-          "ordinal": 0,
-          "type_info": "Int8"
-        },
-        {
-          "name": "location_id",
-          "ordinal": 1,
-          "type_info": "Int8"
-        },
-        {
-          "name": "name",
-          "ordinal": 2,
-          "type_info": "Text"
-        },
-        {
-          "name": "abbreviation",
-          "ordinal": 3,
-          "type_info": "Text"
-        },
-        {
-          "name": "deleted_at",
-          "ordinal": 4,
-          "type_info": "Timestamp"
-        },
-        {
-          "name": "disabled_at",
-          "ordinal": 5,
-          "type_info": "Timestamp"
-        },
-        {
-          "name": "reserved_at",
-          "ordinal": 6,
-          "type_info": "Timestamp"
-        },
-        {
-          "name": "created_at",
-          "ordinal": 7,
-          "type_info": "Timestamp"
-        },
-        {
-          "name": "reserved_minutes!",
-          "ordinal": 8,
-          "type_info": "Int4"
-        }
-      ],
-      "nullable": [
-        false,
-        false,
-        false,
-        false,
-        true,
-        true,
-        true,
-        false,
-        null
-      ],
-      "parameters": {
-        "Left": [
-          "Int8"
-        ]
-      }
-    },
-    "query": "UPDATE game\n                  SET deleted_at = now()\n                WHERE id = $1\n            RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as \"reserved_minutes!\""
-  },
-  "c62a5cae54367e1a311aed24eb3307c1dcfb9bbf31b308009300acddc15eb40a": {
+  "f42aa1abb6cff8a7e97e2df137cc5cff38137820fe9121be1ef5ad89e5149558": {
     "describe": {
       "columns": [
         {
@@ -708,263 +1145,6 @@
         ]
       }
     },
-    "query": "SELECT *\n                 FROM note\n                WHERE deleted_at IS NULL\n                  AND game_id = $1\n                ORDER BY created_at ASC"
-  },
-  "ceaa64f403c14dddeffcf972d56eb59546748a1b2b3a0dc85d84a6a7a28204ce": {
-    "describe": {
-      "columns": [
-        {
-          "name": "id",
-          "ordinal": 0,
-          "type_info": "Int8"
-        },
-        {
-          "name": "location_id",
-          "ordinal": 1,
-          "type_info": "Int8"
-        },
-        {
-          "name": "name",
-          "ordinal": 2,
-          "type_info": "Text"
-        },
-        {
-          "name": "abbreviation",
-          "ordinal": 3,
-          "type_info": "Text"
-        },
-        {
-          "name": "deleted_at",
-          "ordinal": 4,
-          "type_info": "Timestamp"
-        },
-        {
-          "name": "disabled_at",
-          "ordinal": 5,
-          "type_info": "Timestamp"
-        },
-        {
-          "name": "reserved_at",
-          "ordinal": 6,
-          "type_info": "Timestamp"
-        },
-        {
-          "name": "created_at",
-          "ordinal": 7,
-          "type_info": "Timestamp"
-        },
-        {
-          "name": "reserved_minutes!",
-          "ordinal": 8,
-          "type_info": "Int4"
-        }
-      ],
-      "nullable": [
-        false,
-        false,
-        false,
-        false,
-        true,
-        true,
-        true,
-        false,
-        null
-      ],
-      "parameters": {
-        "Left": [
-          "Text",
-          "Text",
-          "Int8"
-        ]
-      }
-    },
-    "query": "UPDATE game\n                  SET name = $1,\n                      abbreviation = $2\n                WHERE id = $3\n            RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as \"reserved_minutes!\""
-  },
-  "d337ebf921c96aac72331964a913097670ddb8bad685234d37261438a55067d9": {
-    "describe": {
-      "columns": [
-        {
-          "name": "id",
-          "ordinal": 0,
-          "type_info": "Int8"
-        },
-        {
-          "name": "location_id",
-          "ordinal": 1,
-          "type_info": "Int8"
-        },
-        {
-          "name": "name",
-          "ordinal": 2,
-          "type_info": "Text"
-        },
-        {
-          "name": "abbreviation",
-          "ordinal": 3,
-          "type_info": "Text"
-        },
-        {
-          "name": "deleted_at",
-          "ordinal": 4,
-          "type_info": "Timestamp"
-        },
-        {
-          "name": "disabled_at",
-          "ordinal": 5,
-          "type_info": "Timestamp"
-        },
-        {
-          "name": "reserved_at",
-          "ordinal": 6,
-          "type_info": "Timestamp"
-        },
-        {
-          "name": "created_at",
-          "ordinal": 7,
-          "type_info": "Timestamp"
-        },
-        {
-          "name": "reserved_minutes!",
-          "ordinal": 8,
-          "type_info": "Int4"
-        }
-      ],
-      "nullable": [
-        false,
-        false,
-        false,
-        false,
-        true,
-        true,
-        true,
-        false,
-        null
-      ],
-      "parameters": {
-        "Left": [
-          "Int8"
-        ]
-      }
-    },
-    "query": "UPDATE game\n                  SET reserved_at = NULL\n                WHERE id = $1\n            RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as \"reserved_minutes!\""
-  },
-  "d9067d56854f63223e0aba5881915bcda8972f100ef0dc9d370b3aca8f98c80f": {
-    "describe": {
-      "columns": [
-        {
-          "name": "id",
-          "ordinal": 0,
-          "type_info": "Int8"
-        },
-        {
-          "name": "game_id",
-          "ordinal": 1,
-          "type_info": "Int8"
-        },
-        {
-          "name": "player_id",
-          "ordinal": 2,
-          "type_info": "Int8"
-        },
-        {
-          "name": "note",
-          "ordinal": 3,
-          "type_info": "Text"
-        },
-        {
-          "name": "deleted_at",
-          "ordinal": 4,
-          "type_info": "Timestamp"
-        },
-        {
-          "name": "created_at",
-          "ordinal": 5,
-          "type_info": "Timestamp"
-        }
-      ],
-      "nullable": [
-        false,
-        false,
-        true,
-        false,
-        true,
-        false
-      ],
-      "parameters": {
-        "Left": [
-          "Text",
-          "Int8"
-        ]
-      }
-    },
-    "query": "INSERT INTO note (note, game_id)\n                    VALUES ($1, $2)\n                 RETURNING *"
-  },
-  "f2b3922376d35f7e655b281ce4a88f53abbcbaa25ad6e9a607b32480d655c36f": {
-    "describe": {
-      "columns": [
-        {
-          "name": "id",
-          "ordinal": 0,
-          "type_info": "Int8"
-        },
-        {
-          "name": "location_id",
-          "ordinal": 1,
-          "type_info": "Int8"
-        },
-        {
-          "name": "name",
-          "ordinal": 2,
-          "type_info": "Text"
-        },
-        {
-          "name": "abbreviation",
-          "ordinal": 3,
-          "type_info": "Text"
-        },
-        {
-          "name": "deleted_at",
-          "ordinal": 4,
-          "type_info": "Timestamp"
-        },
-        {
-          "name": "disabled_at",
-          "ordinal": 5,
-          "type_info": "Timestamp"
-        },
-        {
-          "name": "reserved_at",
-          "ordinal": 6,
-          "type_info": "Timestamp"
-        },
-        {
-          "name": "created_at",
-          "ordinal": 7,
-          "type_info": "Timestamp"
-        },
-        {
-          "name": "reserved_minutes!",
-          "ordinal": 8,
-          "type_info": "Int4"
-        }
-      ],
-      "nullable": [
-        false,
-        false,
-        false,
-        false,
-        true,
-        true,
-        true,
-        false,
-        null
-      ],
-      "parameters": {
-        "Left": [
-          "Int8"
-        ]
-      }
-    },
-    "query": "UPDATE game\n                  SET disabled_at = now()\n                WHERE id = $1\n            RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as \"reserved_minutes!\""
+    "query": "UPDATE note\n                  SET deleted_at = now()\n                WHERE id = $1\n                  AND deleted_at IS NULL\n            RETURNING *"
   }
 }

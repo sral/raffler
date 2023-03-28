@@ -9,9 +9,9 @@ rocket_db_pools = {version = "0.1.0-rc", features = ["sqlx_postgres"]}
 chrono = { version = "0.4", features = ["serde"]}
 
 [dependencies.sqlx]
-version = "0.5.1"
+version = "0.6"
 default-features = false
-features = ["chrono", "macros", "offline", "migrate"]
+features = ["chrono", "macros", "offline", "migrate", "runtime-tokio-rustls"]
 
 [patch.crates-io]
 rocket = { git = "https://github.com/SergioBenitez/Rocket"}
