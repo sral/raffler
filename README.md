@@ -25,7 +25,7 @@ To build and run:
 Useful commands for testing service/API locally.
 
 ##### Add location
-`$ curl -X POST http://localhost:8000/v1/locations -H 'Content-Type: application/json' -d '{"name":"Spola Tilted"}'`
+`$ curl -X POST http://localhost:8000/v1/locations -H 'Content-Type: application/json' -d '{"name":"Spola Tilten"}'`
 
 ##### List locations
 `$ curl http://localhost:8000/v1/locations`
