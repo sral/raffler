@@ -75,18 +75,22 @@ function GameList({gameStates, setGameStates, setReservedGame}) {
     }
 
     return (
-        <div>
-            {gameStates.map((game, index) => (
-                <GameButton
-                    name={game.name}
-                    abbreviation={game.abbreviation}
-                    disabledAt={game.disabled_at}
-                    reservedAt={game.reserved_at}
-                    reservedMinutes={game.reserved_minutes}
-                    onButtonClick={() => onButtonClick(index)}
-                />
-            ))}
-        </div>
+        <ReactBootstrap.Container>
+            <ReactBootstrap.Row>
+                <ReactBootstrap.Col>
+                    {gameStates.map((game, index) => (
+                        <GameButton
+                            name={game.name}
+                            abbreviation={game.abbreviation}
+                            disabledAt={game.disabled_at}
+                            reservedAt={game.reserved_at}
+                            reservedMinutes={game.reserved_minutes}
+                            onButtonClick={() => onButtonClick(index)}
+                        />
+                    ))}
+                </ReactBootstrap.Col>
+            </ReactBootstrap.Row>
+        </ReactBootstrap.Container>
     );
 }
 
@@ -94,7 +98,7 @@ function Raffler() {
     const [locations, setLocations] = React.useState([]);
     const [reservedGame, setReservedGame] = React.useState(null);
     const [gameStates, setGameStates] = React.useState([]);
-    
+
     React.useEffect(() => {
         const getLocations = async () => {
             setLocations(await API.getLocations());
@@ -112,23 +116,21 @@ function Raffler() {
        }, []);
 
     return (
-        <div class="container">
+            <div class="container">
+                <div class="text-center">
+                    <RaffleButton
+                        setGameStates={setGameStates}
+                        setReservedGame={setReservedGame}
+                    />
+                </div>
             <div>
-                <RaffleButton
-                    setGameStates={setGameStates}
-                    setReservedGame={setReservedGame}
-                />
+                <h3 class="text-center">{reservedGame ? reservedGame.name : ''}</h3>
             </div>
-            <div>
-                <h3>{reservedGame ? reservedGame.name : ''}</h3>
-            </div>
-            <div>
-                <GameList 
-                    gameStates={gameStates}
-                    setGameStates={setGameStates} 
-                    setReservedGame={setReservedGame}
-                />
-            </div>
+            <GameList
+                gameStates={gameStates}
+                setGameStates={setGameStates}
+                setReservedGame={setReservedGame}
+            />
         </div>
     );
 }
