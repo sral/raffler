@@ -1,3 +1,12 @@
+Frontend (crude beginning still):
+- Vendor dependencis (?) and figure out how to build production app
+- Add some basic style
+- Add support for multiple locations
+- Implement drop-down menus on games
+- Add error handling (handle 404s etc) or fix API responses to not err as described below
+- Etc etc
+
+Backend:
 - Improve API error handling, implement and document HTTP statuses.
     - Do we need an API error object to provide context around failures? Not yet maybe but in the future?
 - Spawn and pass transaction to db functions to allow composing/multiple queries in same transaction?
