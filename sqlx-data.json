@@ -1,73 +1,5 @@
 {
   "db": "PostgreSQL",
-  "0c91a5336c3106af9f532098b3b8dc8cc998c6546511d18ed2dedcb72b8499ec": {
-    "describe": {
-      "columns": [
-        {
-          "name": "id",
-          "ordinal": 0,
-          "type_info": "Int8"
-        },
-        {
-          "name": "location_id",
-          "ordinal": 1,
-          "type_info": "Int8"
-        },
-        {
-          "name": "name",
-          "ordinal": 2,
-          "type_info": "Text"
-        },
-        {
-          "name": "abbreviation",
-          "ordinal": 3,
-          "type_info": "Text"
-        },
-        {
-          "name": "deleted_at",
-          "ordinal": 4,
-          "type_info": "Timestamp"
-        },
-        {
-          "name": "disabled_at",
-          "ordinal": 5,
-          "type_info": "Timestamp"
-        },
-        {
-          "name": "reserved_at",
-          "ordinal": 6,
-          "type_info": "Timestamp"
-        },
-        {
-          "name": "created_at",
-          "ordinal": 7,
-          "type_info": "Timestamp"
-        },
-        {
-          "name": "reserved_minutes!",
-          "ordinal": 8,
-          "type_info": "Int4"
-        }
-      ],
-      "nullable": [
-        false,
-        false,
-        false,
-        false,
-        true,
-        true,
-        true,
-        false,
-        null
-      ],
-      "parameters": {
-        "Left": [
-          "Int8"
-        ]
-      }
-    },
-    "query": "SELECT game.*, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as \"reserved_minutes!\"\n                 FROM game\n                 JOIN location\n                   ON location.id = game.location_id\n                WHERE game.deleted_at IS NULL\n                  AND location.deleted_at IS NULL\n                  AND location_id = $1\n             ORDER BY abbreviation ASC"
-  },
   "0cccb79fb464ca0bba056a8d3177a9aff8b451090762b89ff6259ead7181b2eb": {
     "describe": {
       "columns": [
@@ -906,6 +838,74 @@
       }
     },
     "query": "UPDATE game\n                  SET reserved_at = now()\n                WHERE id = $1\n                  AND location_id = $2\n            RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as \"reserved_minutes!\""
+  },
+  "d361b0e63f83a836585a9287627a343a52021d5578a563458203a6ff97e63ed6": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int8"
+        },
+        {
+          "name": "location_id",
+          "ordinal": 1,
+          "type_info": "Int8"
+        },
+        {
+          "name": "name",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "abbreviation",
+          "ordinal": 3,
+          "type_info": "Text"
+        },
+        {
+          "name": "deleted_at",
+          "ordinal": 4,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "disabled_at",
+          "ordinal": 5,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "reserved_at",
+          "ordinal": 6,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "created_at",
+          "ordinal": 7,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "reserved_minutes!",
+          "ordinal": 8,
+          "type_info": "Int4"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        true,
+        true,
+        true,
+        false,
+        null
+      ],
+      "parameters": {
+        "Left": [
+          "Int8"
+        ]
+      }
+    },
+    "query": "SELECT game.*, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as \"reserved_minutes!\"\n                 FROM game\n                 JOIN location\n                   ON location.id = game.location_id\n                WHERE game.deleted_at IS NULL\n                  AND location.deleted_at IS NULL\n                  AND location_id = $1\n             ORDER BY abbreviation, id ASC"
   },
   "d8009d4dcd2eaf749542f3cad710d6eafaab9e4f1a92eb98dc941a533ac19a68": {
     "describe": {

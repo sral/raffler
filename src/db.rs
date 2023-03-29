@@ -209,7 +209,7 @@ impl Game {
                 WHERE game.deleted_at IS NULL
                   AND location.deleted_at IS NULL
                   AND location_id = $1
-             ORDER BY abbreviation ASC"#,
+             ORDER BY abbreviation, id ASC"#,
             id
         )
         .fetch(&mut tx)
