@@ -1,3 +1,9 @@
 .fixed-width-button {
     width: 200px;
 }
+
+.fixed-height-selected-game {
+    display: block;
+    height: 50px;
+    text-align: center;
+}

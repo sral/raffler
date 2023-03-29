@@ -2,9 +2,13 @@ import {API} from './api.js';
 
 const API_URL = 'http://localhost:8000';
 
-function LocationPicker({locations, setSelectedLocation, setReservedGame}) {
+function LocationPicker({locations, setSelectedLocation, selectedLocation, setReservedGame}) {
 
 function handleClick(locationId) {
+    if (locationId == selectedLocation) {
+        return;
+    }
+
     setReservedGame(null);
     setSelectedLocation(locationId);
 }
@@ -158,24 +162,27 @@ function Raffler() {
                         locations={locations}
                         setSelectedLocation={setSelectedLocation}
                         setReservedGame={setReservedGame}
+                        selectedLocation={selectedLocation}
                     />
                 </div>
-                <div class="text-center">
-                    <RaffleButton
+                <div  class={selectedLocation ? 'visible': 'invisible'}>
+                    <div class="text-center my-2">
+                        <RaffleButton
+                            setGameStates={setGameStates}
+                            setReservedGame={setReservedGame}
+                            selectedLocation={selectedLocation}
+                            />
+                    </div>
+                    <div class="fixed-height-selected-game my-2">
+                        <h3>{reservedGame ? reservedGame.name : ''}</h3>
+                    </div>
+                    <GameList
+                        gameStates={gameStates}
                         setGameStates={setGameStates}
                         setReservedGame={setReservedGame}
                         selectedLocation={selectedLocation}
                     />
                 </div>
-            <div>
-                <h3 class="text-center">{reservedGame ? reservedGame.name : ''}</h3>
-            </div>
-            <GameList
-                gameStates={gameStates}
-                setGameStates={setGameStates}
-                setReservedGame={setReservedGame}
-                selectedLocation={selectedLocation}
-            />
         </div>
     );
 }
