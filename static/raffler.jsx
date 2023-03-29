@@ -1,5 +1,18 @@
 import {API} from './api.js';
 
+// TODO;: Clean this crap up once imports are sorted etc.
+const Button = ReactBootstrap.Button;
+const ButtonGroup = ReactBootstrap.ButtonGroup;
+const Col = ReactBootstrap.Col;
+const Container = ReactBootstrap.Container;
+const Dropdown = ReactBootstrap.Dropdown;
+const DropdownButton = ReactBootstrap.DropdownButton;
+const Nav = ReactBootstrap.Nav;
+const Navbar = ReactBootstrap.Navbar;
+const NavDropdown = ReactBootstrap.NavDropdown;
+const Row = ReactBootstrap.Row;
+
+
 const API_URL = 'http://localhost:8000';
 
 function LocationPicker({locations, setSelectedLocation, selectedLocation, setReservedGame}) {
@@ -14,25 +27,25 @@ function handleClick(locationId) {
 }
 
 return (
-    <ReactBootstrap.Navbar bg="light" expand="lg">
-      <ReactBootstrap.Container>
-        <ReactBootstrap.Navbar.Brand
-            href="#home">Raffler frob baz bar foo
-        </ReactBootstrap.Navbar.Brand>
-        <ReactBootstrap.Navbar.Toggle aria-controls="basic-navbar-nav" />
-        <ReactBootstrap.Navbar.Collapse id="basic-navbar-nav">
-          <ReactBootstrap.Nav className="me-auto">
-            <ReactBootstrap.NavDropdown title="Locations" id="basic-nav-dropdown">
-            {locations.map((location, index) => (
-                <ReactBootstrap.NavDropdown.Item href="#" onClick={() => handleClick(location.id)}>
-                    {location.name}
-                </ReactBootstrap.NavDropdown.Item>
-            ))}
-            </ReactBootstrap.NavDropdown>
-          </ReactBootstrap.Nav>
-        </ReactBootstrap.Navbar.Collapse>
-      </ReactBootstrap.Container>
-    </ReactBootstrap.Navbar>
+    <Navbar bg="light" expand="lg">
+        <Container>
+            <Navbar.Brand
+                href="#home">Raffler frob baz bar foo
+            </Navbar.Brand>
+            <Navbar.Toggle aria-controls="basic-navbar-nav" />
+            <Navbar.Collapse id="basic-navbar-nav">
+                <Nav className="me-auto">
+                    <NavDropdown title="Locations" id="basic-nav-dropdown">
+                    {locations.map((location, index) => (
+                        <NavDropdown.Item href="#" onClick={() => handleClick(location.id)}>
+                            {location.name}
+                        </NavDropdown.Item>
+                    ))}
+                    </NavDropdown>
+                </Nav>
+            </Navbar.Collapse>
+        </Container>
+    </Navbar>
   );
 }
 
@@ -45,14 +58,14 @@ function RaffleButton({setGameStates, setReservedGame, selectedLocation}) {
     }
 
     return (
-        <ReactBootstrap.Button
+        <Button
             variant="primary"
             onClick={handleClick}
             size='lg'
             className="fixed-width-button mx-1 my-2"
         >
             Raffle!
-        </ReactBootstrap.Button>
+        </Button>
     );
 }
 
@@ -65,29 +78,29 @@ function GameButton({name, abbreviation, disabledAt, reservedAt, reservedMinutes
     let buttonText = reservedAt ? `${abbreviation} (${reservedMinutes}m)` : abbreviation;
 
     return (
-        <ReactBootstrap.ButtonGroup
+        <ButtonGroup
             className="fixed-width-button mx-1 my-2"
         >
-            <ReactBootstrap.Button
+            <Button
                 title={name}
                 variant={variant}
                 disabled={disabled}
                 onClick={!disabled ? onButtonClick: null}
             >
                 {buttonText}
-            </ReactBootstrap.Button>
-            <ReactBootstrap.DropdownButton
+            </Button>
+            <DropdownButton
                 variant={variant}
-                as={ReactBootstrap.ButtonGroup}
+                as={ButtonGroup}
                 id='bg-nested-dropdown'
                 drop='end'
             >
-                <ReactBootstrap.Dropdown.Item eventKey="1">Disable/enable</ReactBootstrap.Dropdown.Item>
-                <ReactBootstrap.Dropdown.Item eventKey="2">Update</ReactBootstrap.Dropdown.Item>
-                <ReactBootstrap.Dropdown.Item eventKey="3">Comment</ReactBootstrap.Dropdown.Item>
-                <ReactBootstrap.Dropdown.Item eventKey="4">Remove</ReactBootstrap.Dropdown.Item>
-            </ReactBootstrap.DropdownButton>
-        </ReactBootstrap.ButtonGroup>
+                <Dropdown.Item eventKey="1">Disable/enable</Dropdown.Item>
+                <Dropdown.Item eventKey="2">Update</Dropdown.Item>
+                <Dropdown.Item eventKey="3">Comment</Dropdown.Item>
+                <Dropdown.Item eventKey="4">Remove</Dropdown.Item>
+            </DropdownButton>
+        </ButtonGroup>
     );
 }
 
@@ -112,9 +125,9 @@ function GameList({gameStates, setGameStates, setReservedGame, selectedLocation}
     }
 
     return (
-        <ReactBootstrap.Container fluid='md'>
-            <ReactBootstrap.Row>
-                <ReactBootstrap.Col>
+        <Container fluid='md'>
+            <Row>
+                <Col>
                     {gameStates.map((game, index) => (
                         <GameButton
                             name={game.name}
@@ -125,9 +138,9 @@ function GameList({gameStates, setGameStates, setReservedGame, selectedLocation}
                             onButtonClick={() => onButtonClick(index)}
                         />
                     ))}
-                </ReactBootstrap.Col>
-            </ReactBootstrap.Row>
-        </ReactBootstrap.Container>
+                </Col>
+            </Row>
+        </Container>
     );
 }
 
