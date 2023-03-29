@@ -15,6 +15,7 @@ function RaffleButton({setGameStates, setReservedGame}) {
             variant="primary"
             onClick={handleClick}
             size='lg'
+            className="fixed-width-button mx-1 my-2"
         >
             Raffle!
         </ReactBootstrap.Button>
@@ -30,7 +31,9 @@ function GameButton({name, abbreviation, disabledAt, reservedAt, reservedMinutes
     let buttonText = reservedAt ? `${abbreviation} (${reservedMinutes}m)` : abbreviation;
 
     return (
-        <ReactBootstrap.ButtonGroup>
+        <ReactBootstrap.ButtonGroup 
+            className="fixed-width-button mx-1 my-2"
+        >
             <ReactBootstrap.Button
                 title={name}
                 variant={variant}
@@ -75,7 +78,7 @@ function GameList({gameStates, setGameStates, setReservedGame}) {
     }
 
     return (
-        <ReactBootstrap.Container>
+        <ReactBootstrap.Container fluid='md'>
             <ReactBootstrap.Row>
                 <ReactBootstrap.Col>
                     {gameStates.map((game, index) => (
