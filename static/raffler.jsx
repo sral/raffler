@@ -2,12 +2,42 @@ import {API} from './api.js';
 
 const API_URL = 'http://localhost:8000';
 
+function LocationPicker({locations, setSelectedLocation}) {
 
-function RaffleButton({setGameStates, setReservedGame}) {
+function handleClick(locationId) {
+    console.log("frob!", locationId);
+    setSelectedLocation(locationId);
+}
+
+return (
+    <ReactBootstrap.Navbar bg="light" expand="lg">
+      <ReactBootstrap.Container>
+        <ReactBootstrap.Navbar.Brand 
+            href="#home">Raffler frob baz bar foo
+        </ReactBootstrap.Navbar.Brand>
+        <ReactBootstrap.Navbar.Toggle aria-controls="basic-navbar-nav" />
+        <ReactBootstrap.Navbar.Collapse id="basic-navbar-nav">
+          <ReactBootstrap.Nav className="me-auto">
+            <ReactBootstrap.NavDropdown title="Locations" id="basic-nav-dropdown">
+            {locations.map((location, index) => (
+                <ReactBootstrap.NavDropdown.Item href="#" onClick={() => handleClick(location.id)}>
+                    {location.name}
+                </ReactBootstrap.NavDropdown.Item>
+            ))}
+            </ReactBootstrap.NavDropdown>
+          </ReactBootstrap.Nav>
+        </ReactBootstrap.Navbar.Collapse>
+      </ReactBootstrap.Container>
+    </ReactBootstrap.Navbar>
+  );
+}
+
+
+function RaffleButton({setGameStates, setReservedGame, selectedLocation}) {
     async function handleClick() {
-        setReservedGame(await API.reserveRandom(1));
+        setReservedGame(await API.reserveRandom(selectedLocation));
         // Wasteful round-trip! See comment below.
-        setGameStates(await API.getGames(1));
+        setGameStates(await API.getGames(selectedLocation));
     }
 
     return (
@@ -57,23 +87,23 @@ function GameButton({name, abbreviation, disabledAt, reservedAt, reservedMinutes
     );
 }
 
-function GameList({gameStates, setGameStates, setReservedGame}) {
+function GameList({gameStates, setGameStates, setReservedGame, selectedLocation}) {
     async function onButtonClick(i) {
         let game = gameStates[i];
         let gameId = gameStates[i].id;
         let reservedAt = gameStates[i].reserved_at;
 
         if (reservedAt) {
-            await API.cancelReservation(1, gameId);
+            await API.cancelReservation(selectedLocation, gameId);
         } else {
-            await API.reserve(1, gameId);
+            await API.reserve(selectedLocation, gameId);
             setReservedGame(game);
         }
         // Wasteful! This roundtrip could be avoided and only the
         // affected game could be updated. On the plus side this
         // probably helps keep UI slightly more in sync if we have
         // concurrent user fiddling with things.
-        let nextGameState = await API.getGames(1)
+        let nextGameState = await API.getGames(selectedLocation)
         setGameStates(nextGameState);
     }
 
@@ -98,6 +128,7 @@ function GameList({gameStates, setGameStates, setReservedGame}) {
 }
 
 function Raffler() {
+    const [selectedLocation, setSelectedLocation] = React.useState(null);
     const [locations, setLocations] = React.useState([]);
     const [reservedGame, setReservedGame] = React.useState(null);
     const [gameStates, setGameStates] = React.useState([]);
@@ -112,18 +143,27 @@ function Raffler() {
 
     React.useEffect(() => {
         const getGameStates = async () => {
-            setGameStates(await API.getGames(1));
+            if (selectedLocation) {            
+                setGameStates(await API.getGames(selectedLocation));
+            }
         }
 
         getGameStates();
-       }, []);
+       }, [selectedLocation]);
 
     return (
             <div class="container">
+                <div>
+                    <LocationPicker 
+                        locations={locations}
+                        setSelectedLocation={setSelectedLocation}
+                    />
+                </div>
                 <div class="text-center">
                     <RaffleButton
                         setGameStates={setGameStates}
                         setReservedGame={setReservedGame}
+                        selectedLocation={selectedLocation}
                     />
                 </div>
             <div>
@@ -133,6 +173,7 @@ function Raffler() {
                 gameStates={gameStates}
                 setGameStates={setGameStates}
                 setReservedGame={setReservedGame}
+                selectedLocation={selectedLocation}
             />
         </div>
     );
