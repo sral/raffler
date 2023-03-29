@@ -2,17 +2,17 @@ import {API} from './api.js';
 
 const API_URL = 'http://localhost:8000';
 
-function LocationPicker({locations, setSelectedLocation}) {
+function LocationPicker({locations, setSelectedLocation, setReservedGame}) {
 
 function handleClick(locationId) {
-    console.log("frob!", locationId);
+    setReservedGame(null);
     setSelectedLocation(locationId);
 }
 
 return (
     <ReactBootstrap.Navbar bg="light" expand="lg">
       <ReactBootstrap.Container>
-        <ReactBootstrap.Navbar.Brand 
+        <ReactBootstrap.Navbar.Brand
             href="#home">Raffler frob baz bar foo
         </ReactBootstrap.Navbar.Brand>
         <ReactBootstrap.Navbar.Toggle aria-controls="basic-navbar-nav" />
@@ -61,7 +61,7 @@ function GameButton({name, abbreviation, disabledAt, reservedAt, reservedMinutes
     let buttonText = reservedAt ? `${abbreviation} (${reservedMinutes}m)` : abbreviation;
 
     return (
-        <ReactBootstrap.ButtonGroup 
+        <ReactBootstrap.ButtonGroup
             className="fixed-width-button mx-1 my-2"
         >
             <ReactBootstrap.Button
@@ -128,8 +128,8 @@ function GameList({gameStates, setGameStates, setReservedGame, selectedLocation}
 }
 
 function Raffler() {
-    const [selectedLocation, setSelectedLocation] = React.useState(null);
     const [locations, setLocations] = React.useState([]);
+    const [selectedLocation, setSelectedLocation] = React.useState(null);
     const [reservedGame, setReservedGame] = React.useState(null);
     const [gameStates, setGameStates] = React.useState([]);
 
@@ -143,7 +143,7 @@ function Raffler() {
 
     React.useEffect(() => {
         const getGameStates = async () => {
-            if (selectedLocation) {            
+            if (selectedLocation) {
                 setGameStates(await API.getGames(selectedLocation));
             }
         }
@@ -154,9 +154,10 @@ function Raffler() {
     return (
             <div class="container">
                 <div>
-                    <LocationPicker 
+                    <LocationPicker
                         locations={locations}
                         setSelectedLocation={setSelectedLocation}
+                        setReservedGame={setReservedGame}
                     />
                 </div>
                 <div class="text-center">
