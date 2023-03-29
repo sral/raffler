@@ -27,9 +27,28 @@ export class API {
         .catch((error) => console.log(`Error: ${error}`));
     }
 
-    static async cancelReservation(locationId, gameId) {
+    static async release(locationId, gameId) {
         return fetch(API_URL + `/v1/locations/${locationId}/games/${gameId}/reservations`, {
             method: 'DELETE',
+        })
+        .then((response) => null)
+        .catch((error) => console.log(`Error: ${error}`));
+    }
+
+    static async enable(locationId, gameId) {
+        return fetch(API_URL + `/v1/locations/${locationId}/games/${gameId}/enable`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        })
+        .then((response) => null)
+        .catch((error) => console.log(`Error: ${error}`));
+    }
+
+    static async disable(locationId, gameId) {
+        return fetch(API_URL + `/v1/locations/${locationId}/games/${gameId}/disable`, {
+            method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
