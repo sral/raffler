@@ -1,6 +1,8 @@
 const API_URL = 'http://localhost:8000';
 
-// Add error handling, ex 404s.
+// TODO: 
+//   - Add error handling, ex 404s
+//   - Organise API, ex API.Games.reserve()
 
 export class API {
     static async reserveRandom(locationId) {
@@ -13,7 +15,6 @@ export class API {
         .then((response) => response.json())
         .catch((error) => console.log(`Error: ${error}`));
     }
-
 
     static async reserve(locationId, gameId) {
         return fetch(API_URL + `/v1/locations/${locationId}/games/${gameId}/reservations`, {

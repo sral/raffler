@@ -3,6 +3,24 @@ import {API} from './api.js';
 const API_URL = 'http://localhost:8000';
 
 
+function RaffleButton({setGameStates, setReservedGame}) {
+    async function handleClick() {
+        setReservedGame(await API.reserveRandom(1));
+        // Wasteful round-trip! See comment below.
+        setGameStates(await API.getGames(1));
+    }
+
+    return (
+        <ReactBootstrap.Button
+            variant="primary"
+            onClick={handleClick}
+            size='lg'
+        >
+            Raffle!
+        </ReactBootstrap.Button>
+    );
+}
+
 function GameButton({name, abbreviation, disabledAt, reservedAt, reservedMinutes, onButtonClick}) {
     let variant = reservedAt ? 'danger' : 'success';
     let disabled = disabledAt ? true : false;
@@ -27,43 +45,16 @@ function GameButton({name, abbreviation, disabledAt, reservedAt, reservedMinutes
                 id='bg-nested-dropdown'
                 drop='end'
             >
-                <ReactBootstrap.Dropdown.Item eventKey="1">Dropdown link</ReactBootstrap.Dropdown.Item>
-                <ReactBootstrap.Dropdown.Item eventKey="2">Dropdown link</ReactBootstrap.Dropdown.Item>
+                <ReactBootstrap.Dropdown.Item eventKey="1">Disable/enable</ReactBootstrap.Dropdown.Item>
+                <ReactBootstrap.Dropdown.Item eventKey="2">Update</ReactBootstrap.Dropdown.Item>
+                <ReactBootstrap.Dropdown.Item eventKey="3">Comment</ReactBootstrap.Dropdown.Item>
+                <ReactBootstrap.Dropdown.Item eventKey="4">Remove</ReactBootstrap.Dropdown.Item>
             </ReactBootstrap.DropdownButton>
         </ReactBootstrap.ButtonGroup>
     );
 }
 
-
-function RaffleButton({setReservedGame}) {
-    async function handleClick() {
-        setReservedGame(await API.reserveRandom(1));
-    }
-
-    return (
-        <div>
-            <ReactBootstrap.Button
-                variant="primary"
-                onClick={handleClick}
-                size='lg'
-            >
-                Raffle!
-            </ReactBootstrap.Button>
-        </div>
-    );
-}
-
-function GameList({setReservedGame}) {
-    const [gameStates, setGameStates] = React.useState([]);
-
-    React.useEffect(() => {
-        const getGameStates = async () => {
-            setGameStates(await API.getGames(1));
-        }
-
-        getGameStates();
-       }, []);
-
+function GameList({gameStates, setGameStates, setReservedGame}) {
     async function onButtonClick(i) {
         let game = gameStates[i];
         let gameId = gameStates[i].id;
@@ -102,7 +93,8 @@ function GameList({setReservedGame}) {
 function Raffler() {
     const [locations, setLocations] = React.useState([]);
     const [reservedGame, setReservedGame] = React.useState(null);
-
+    const [gameStates, setGameStates] = React.useState([]);
+    
     React.useEffect(() => {
         const getLocations = async () => {
             setLocations(await API.getLocations());
@@ -111,13 +103,32 @@ function Raffler() {
         getLocations();
     }, []);
 
+    React.useEffect(() => {
+        const getGameStates = async () => {
+            setGameStates(await API.getGames(1));
+        }
+
+        getGameStates();
+       }, []);
+
     return (
-        <div>
-            <RaffleButton
-                setReservedGame={setReservedGame}
-            />
-            <h3>{reservedGame ? reservedGame.name : ''}</h3>
-            <GameList setReservedGame={setReservedGame}/>
+        <div class="container">
+            <div>
+                <RaffleButton
+                    setGameStates={setGameStates}
+                    setReservedGame={setReservedGame}
+                />
+            </div>
+            <div>
+                <h3>{reservedGame ? reservedGame.name : ''}</h3>
+            </div>
+            <div>
+                <GameList 
+                    gameStates={gameStates}
+                    setGameStates={setGameStates} 
+                    setReservedGame={setReservedGame}
+                />
+            </div>
         </div>
     );
 }
