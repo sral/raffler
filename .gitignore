@@ -1,6 +1,6 @@
 .vscode/
 /target
 /tmp
-*.sqlite
-*.sqlite-shm
-*.sqlite-wal
+node_modules/
+package-lock.json
+package.json
