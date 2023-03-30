@@ -53,26 +53,7 @@ function RaffleButton({onRaffleButtonClick}) {
   );
 }
 
-function GameButton({game, selectedLocation, setGameStates, onButtonClick}) {
-  async function toggleDisabled(location, game) {
-    const isDisabled = game.disabled_at;
-    const isReserved = game.reserved_at;
-
-    if (isDisabled) {
-      await API.enable(location.id, game.id);
-    } else {
-      if (isReserved) {
-        await API.release(location.id, game.id);
-      }
-      await API.disable(location.id, game.id);
-    }
-    // Wasteful! This roundtrip could be avoided and only the
-    // affected game could be updated. On the plus side this
-    // probably helps keep UI slightly more in sync if we have
-    // concurrent user fiddling with things.
-    setGameStates(await API.getGames(selectedLocation.id));
-  }
-
+function GameButton({game, onButtonClick, onToggleDisabled}) {
   const isDisabled = game.disabled_at;
   const isReserved = game.reserved_at;
 
@@ -103,7 +84,7 @@ function GameButton({game, selectedLocation, setGameStates, onButtonClick}) {
           >
             <Dropdown.Item
               eventKey="1"
-              onClick={() => toggleDisabled(selectedLocation, game)}>{isDisabled ? 'Enable' : 'Disable'}
+              onClick={onToggleDisabled}>{isDisabled ? 'Enable' : 'Disable'}
             </Dropdown.Item>
             <Dropdown.Item eventKey="2">Update</Dropdown.Item>
             <Dropdown.Item eventKey="3">Comment</Dropdown.Item>
@@ -113,17 +94,16 @@ function GameButton({game, selectedLocation, setGameStates, onButtonClick}) {
   );
 }
 
-function GameList({gameStates, setGameStates, selectedLocation, onGameClick}) {
+function GameList({gameStates, selectedLocation, onGameClick, onToggleDisabled}) {
   return (
     <Container fluid='md'>
       <Row>
         <Col>
           {gameStates.map((game, index) => (
             <GameButton
-            game={game}
-            selectedLocation={selectedLocation}
-            setGameStates={setGameStates}
-            onButtonClick={() => onGameClick(index)}
+              game={game}
+              onButtonClick={() => onGameClick(index)}
+              onToggleDisabled={() => onToggleDisabled(selectedLocation, game)}
             />
           ))}
         </Col>
@@ -173,6 +153,24 @@ function Raffler() {
     setSelectedLocation(location);
   }
 
+  async function onToggleDisabled(location, game) {
+    const isDisabled = game.disabled_at;
+    const isReserved = game.reserved_at;
+
+    if (isDisabled) {
+      await API.enable(location.id, game.id);
+    } else {
+      if (isReserved) {
+        await API.release(location.id, game.id);
+      }
+      await API.disable(location.id, game.id);
+    }
+    // Wasteful! This roundtrip could be avoided and only the
+    // affected game could be updated. On the plus side this
+    // probably helps keep UI slightly more in sync if we have
+    // concurrent user fiddling with things.
+    setGameStates(await API.getGames(selectedLocation.id));
+  }
 
   React.useEffect(() => {
     const getLocations = async () => {
@@ -214,9 +212,9 @@ function Raffler() {
         </div>
         <GameList
           gameStates={gameStates}
-          setGameStates={setGameStates}
           selectedLocation={selectedLocation}
           onGameClick={onGameClick}
+          onToggleDisabled={onToggleDisabled}
         />
       </div>
     </div>
