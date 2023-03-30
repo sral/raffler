@@ -7,14 +7,23 @@ const Col = ReactBootstrap.Col;
 const Container = ReactBootstrap.Container;
 const Dropdown = ReactBootstrap.Dropdown;
 const DropdownButton = ReactBootstrap.DropdownButton;
+//const Modal = ReactBootstrap.Modal;
 const Nav = ReactBootstrap.Nav;
 const Navbar = ReactBootstrap.Navbar;
 const NavDropdown = ReactBootstrap.NavDropdown;
+const OverlayTrigger = ReactBootstrap.OverlayTrigger;
 const Row = ReactBootstrap.Row;
+const Tooltip = ReactBootstrap.Tooltip;
 
 
 const API_URL = 'http://localhost:8000';
 
+const Event = {
+  Disable: "disable",
+  Comment: "comment",
+  Update: "update",
+  Remove: "remove",
+}
 function LocationPicker({locations, onSelectLocationClick}) {
   return (
     <Navbar bg="light" expand="lg">
@@ -65,37 +74,51 @@ function GameButton({game, onButtonClick, onToggleGameDisabledClick, onRemoveGam
   const buttonText = isReserved ? `${game.abbreviation} (${game.reserved_minutes}m)` : game.abbreviation;
 
   return (
-    <ButtonGroup
-      className="fixed-width-button mx-1 my-2"
+    <OverlayTrigger
+            key={game.name}
+            placement='top'
+            overlay={
+              <Tooltip id='tooltip-top'>
+                <strong>{game.name}</strong>
+              </Tooltip>
+            }
     >
-      <Button
-        title={game.name}
-        variant={variant}
-        disabled={isDisabled}
-        onClick={!isDisabled ? onButtonClick: null}
+      <ButtonGroup
+        className="fixed-width-button mx-1 my-2"
       >
-        {buttonText}
-        </Button>
-          <DropdownButton
-            variant={variant}
-            as={ButtonGroup}
-            id='bg-nested-dropdown'
-            drop='end'
-          >
-            <Dropdown.Item
-              eventKey="1"
-              onClick={onToggleGameDisabledClick}>{isDisabled ? 'Enable' : 'Disable'}
-            </Dropdown.Item>
-            <Dropdown.Item eventKey="2">Update</Dropdown.Item>
-            <Dropdown.Item eventKey="3">Comment</Dropdown.Item>
-            <Dropdown.Item 
-              eventKey="4"
-              onClick={onRemoveGameClick}
+        <Button
+          title={game.name}
+          variant={variant}
+          disabled={isDisabled}
+          onClick={!isDisabled ? onButtonClick: null}
+        >
+          {buttonText}
+          </Button>
+            <DropdownButton
+              variant={variant}
+              as={ButtonGroup}
+              id='bg-nested-dropdown'
+              drop='end'
             >
-                Remove
-            </Dropdown.Item>
-          </DropdownButton>
-      </ButtonGroup>
+              <Dropdown.Item
+                eventKey={Event.Disable}
+                onClick={onToggleGameDisabledClick}>{isDisabled ? 'Enable' : 'Disable'}
+              </Dropdown.Item>
+              <Dropdown.Item 
+                eventKey={Event.Update}>Update
+              </Dropdown.Item>
+              <Dropdown.Item 
+                eventKey={Event.Comment}>Comment
+              </Dropdown.Item>
+              <Dropdown.Item
+                eventKey={Event.Remove}
+                onClick={onRemoveGameClick}
+              >
+                  Remove
+              </Dropdown.Item>
+            </DropdownButton>
+        </ButtonGroup>
+      </OverlayTrigger>
   );
 }
 
@@ -187,6 +210,15 @@ function Raffler() {
     setGameStates(await API.getGames(selectedLocation.id));
   }
 
+  async function onUpdateGameClick(location, updatedName, updatedabbreviation) {
+    await API.update(location.id, game.id, updatedName, updatedabbreviation);
+    // Wasteful! This roundtrip could be avoided and only the
+    // affected game could be updated. On the plus side this
+    // probably helps keep UI slightly more in sync if we have
+    // concurrent user fiddling with things.
+    setGameStates(await API.getGames(selectedLocation.id));
+  }
+
   async function onToggleGameDisabledClick(location, game) {
     const isDisabled = game.disabled_at;
     const isReserved = game.reserved_at;
@@ -224,15 +256,19 @@ function Raffler() {
           />
         </div>
         <div class="fixed-height-selected-game my-2">
-            <h3>{reservedGame ? reservedGame.name : ''}</h3>
+            <h3>
+              {reservedGame ? reservedGame.name : ''}
+            </h3>
         </div>
-        <GameList
-          gameStates={gameStates}
-          selectedLocation={selectedLocation}
-          onGameClick={onGameClick}
-          onToggleGameDisabledClick={onToggleGameDisabledClick}
-          onRemoveGameClick={onRemoveGameClick}
-        />
+        <div>
+          <GameList 
+            gameStates={gameStates}
+            selectedLocation={selectedLocation}
+            onGameClick={onGameClick}
+            onToggleGameDisabledClick={onToggleGameDisabledClick}
+            onRemoveGameClick={onRemoveGameClick}
+          />
+        </div>
       </div>
     </div>
   );

@@ -65,6 +65,36 @@ export class API {
         .catch((error) => console.log(`Error: ${error}`));
     }
 
+    static async add(locationId, name, abbreviation) {
+        return fetch(API_URL + `/v1/locations/${locationId}/games`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                name: name,
+                abbreviation: abbreviation,
+            })
+        })
+        .then((response) => response.json())
+        .catch((error) => console.log(`Error: ${error}`));
+    }
+
+    static async update(locationId, gameId, name, abbreviation) {
+        return fetch(API_URL + `/v1/locations/${locationId}/games/${gameId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                name: name,
+                abbreviation: abbreviation,
+            })
+        })
+        .then((response) => response.json())
+        .catch((error) => console.log(`Error: ${error}`));
+    }
+
     static async getGames(locationId) {
         return fetch(API_URL + `/v1/locations/${locationId}/games`, {
             method: 'GET',
