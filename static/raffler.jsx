@@ -20,11 +20,11 @@ function LocationPicker({locations, onSelectLocationClick}) {
     <Navbar bg="light" expand="lg">
       <Container>
         <Navbar.Brand
-          href="#">Raffler frob baz bar foo
+          href="#">Razzle dazzle raffle!
         </Navbar.Brand>
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
           <Navbar.Collapse id="basic-navbar-nav">
-            <Nav className="me-auto">
+            <Nav className="ms-auto">
               <NavDropdown title="Locations" id="basic-nav-dropdown">
                 {locations.map((location) => (
                   <NavDropdown.Item href="#" onClick={() => onSelectLocationClick(location)}>
@@ -40,20 +40,20 @@ function LocationPicker({locations, onSelectLocationClick}) {
   }
 
 
-function RaffleButton({onRaffleButtonClick}) {
+function RaffleButton({onRaffleClick}) {
   return (
     <Button
       variant="primary"
-      onClick={onRaffleButtonClick}
+      onClick={onRaffleClick}
       size='lg'
       className="fixed-width-button mx-1 my-2"
     >
-    Raffle!
+    Randomize!
     </Button>
   );
 }
 
-function GameButton({game, onButtonClick, onToggleDisabled}) {
+function GameButton({game, onButtonClick, onToggleGameDisabledClick, onRemoveGameClick}) {
   const isDisabled = game.disabled_at;
   const isReserved = game.reserved_at;
 
@@ -84,17 +84,22 @@ function GameButton({game, onButtonClick, onToggleDisabled}) {
           >
             <Dropdown.Item
               eventKey="1"
-              onClick={onToggleDisabled}>{isDisabled ? 'Enable' : 'Disable'}
+              onClick={onToggleGameDisabledClick}>{isDisabled ? 'Enable' : 'Disable'}
             </Dropdown.Item>
             <Dropdown.Item eventKey="2">Update</Dropdown.Item>
             <Dropdown.Item eventKey="3">Comment</Dropdown.Item>
-            <Dropdown.Item eventKey="4">Remove</Dropdown.Item>
+            <Dropdown.Item 
+              eventKey="4"
+              onClick={onRemoveGameClick}
+            >
+                Remove
+            </Dropdown.Item>
           </DropdownButton>
       </ButtonGroup>
   );
 }
 
-function GameList({gameStates, selectedLocation, onGameClick, onToggleDisabled}) {
+function GameList({gameStates, selectedLocation, onGameClick, onToggleGameDisabledClick, onRemoveGameClick}) {
   return (
     <Container fluid='md'>
       <Row>
@@ -103,7 +108,8 @@ function GameList({gameStates, selectedLocation, onGameClick, onToggleDisabled})
             <GameButton
               game={game}
               onButtonClick={() => onGameClick(index)}
-              onToggleDisabled={() => onToggleDisabled(selectedLocation, game)}
+              onToggleGameDisabledClick={() => onToggleGameDisabledClick(selectedLocation, game)}
+              onRemoveGameClick={() => onRemoveGameClick(selectedLocation, game)}
             />
           ))}
         </Col>
@@ -118,7 +124,26 @@ function Raffler() {
   const [reservedGame, setReservedGame] = React.useState(null);
   const [gameStates, setGameStates] = React.useState([]);
 
-  async function onRaffleButtonClick() {
+  React.useEffect(() => {
+    const getLocations = async () => {
+      setLocations(await API.getLocations());
+    }
+
+    getLocations();
+  }, []);
+
+  React.useEffect(() => {
+    const getGameStates = async () => {
+      if (selectedLocation) {
+        setGameStates(await API.getGames(selectedLocation.id));
+      }
+    }
+
+    getGameStates();
+  }, [selectedLocation]);
+
+
+  async function onRaffleClick() {
     setReservedGame(await API.reserveRandom(selectedLocation.id));
     // Wasteful! This roundtrip could be avoided and only the
     // affected game could be updated. On the plus side this
@@ -153,7 +178,16 @@ function Raffler() {
     setSelectedLocation(location);
   }
 
-  async function onToggleDisabled(location, game) {
+  async function onRemoveGameClick(location, game) {
+    await API.remove(location.id, game.id);
+    // Wasteful! This roundtrip could be avoided and only the
+    // affected game could be updated. On the plus side this
+    // probably helps keep UI slightly more in sync if we have
+    // concurrent user fiddling with things.
+    setGameStates(await API.getGames(selectedLocation.id));
+  }
+
+  async function onToggleGameDisabledClick(location, game) {
     const isDisabled = game.disabled_at;
     const isReserved = game.reserved_at;
 
@@ -172,39 +206,21 @@ function Raffler() {
     setGameStates(await API.getGames(selectedLocation.id));
   }
 
-  React.useEffect(() => {
-    const getLocations = async () => {
-      setLocations(await API.getLocations());
-    }
-
-    getLocations();
-  }, []);
-
-  React.useEffect(() => {
-    const getGameStates = async () => {
-      if (selectedLocation) {
-        setGameStates(await API.getGames(selectedLocation.id));
-      }
-    }
-
-    getGameStates();
-  }, [selectedLocation]);
-
   return (
     <div class="container">
       <div>
         <LocationPicker
           locations={locations}
-          setSelectedLocation={setSelectedLocation}
-          setReservedGame={setReservedGame}
-          selectedLocation={selectedLocation}
           onSelectLocationClick={onSelectLocationClick}
         />
       </div>
       <div  class={selectedLocation ? 'visible': 'invisible'}>
         <div class="text-center my-2">
+          <h1>{selectedLocation ? selectedLocation.name : ""}</h1>
+        </div>
+        <div class="text-center my-2">
           <RaffleButton
-            onRaffleButtonClick={onRaffleButtonClick}
+            onRaffleClick={onRaffleClick}
           />
         </div>
         <div class="fixed-height-selected-game my-2">
@@ -214,7 +230,8 @@ function Raffler() {
           gameStates={gameStates}
           selectedLocation={selectedLocation}
           onGameClick={onGameClick}
-          onToggleDisabled={onToggleDisabled}
+          onToggleGameDisabledClick={onToggleGameDisabledClick}
+          onRemoveGameClick={onRemoveGameClick}
         />
       </div>
     </div>

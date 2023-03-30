@@ -1,6 +1,6 @@
 const API_URL = 'http://localhost:8000';
 
-// TODO: 
+// TODO:
 //   - Add error handling, ex 404s
 //   - Organise API, ex API.Games.reserve()
 
@@ -29,6 +29,14 @@ export class API {
 
     static async release(locationId, gameId) {
         return fetch(API_URL + `/v1/locations/${locationId}/games/${gameId}/reservations`, {
+            method: 'DELETE',
+        })
+        .then((response) => null)
+        .catch((error) => console.log(`Error: ${error}`));
+    }
+
+    static async remove(locationId, gameId) {
+        return fetch(API_URL + `/v1/locations/${locationId}/games/${gameId}`, {
             method: 'DELETE',
         })
         .then((response) => null)
