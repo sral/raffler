@@ -1,13 +1,14 @@
 import {API} from './api.js';
 
-// TODO;: Clean this crap up once imports are sorted etc.
+// TODO: Clean this crap up once imports are sorted etc.
 const Button = ReactBootstrap.Button;
 const ButtonGroup = ReactBootstrap.ButtonGroup;
 const Col = ReactBootstrap.Col;
 const Container = ReactBootstrap.Container;
 const Dropdown = ReactBootstrap.Dropdown;
 const DropdownButton = ReactBootstrap.DropdownButton;
-//const Modal = ReactBootstrap.Modal;
+const Form = ReactBootstrap.Form;
+const Modal = ReactBootstrap.Modal;
 const Nav = ReactBootstrap.Nav;
 const Navbar = ReactBootstrap.Navbar;
 const NavDropdown = ReactBootstrap.NavDropdown;
@@ -24,7 +25,60 @@ const Event = {
   Update: "update",
   Remove: "remove",
 }
-function LocationPicker({locations, onSelectLocationClick}) {
+
+
+function AddLocationModal({modalAddLocationShow, setModalAddLocationShow, setLocations, setSelectedLocation, setReservedGame}) {
+  const [value, setValue] = React.useState('')
+
+  const onClose = () => {
+    setValue('');
+    setModalAddLocationShow(false);
+  };
+  const onInput = ({target:{value}}) => setValue(value);
+  const onSubmit = e => (e.preventDefault());
+
+  async function onAddLocation(e) {
+    setSelectedLocation(await API.addLocation(value));
+    setLocations(await API.getLocations());    
+    setValue('');
+    setReservedGame(null);
+    setModalAddLocationShow(false);
+  }
+  
+  return (
+    <Modal show={modalAddLocationShow} onHide={onClose}>
+      <Modal.Header closeButton>
+        <Modal.Title>Add new location</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+
+        <Form onSubmit={onSubmit}>
+          <Form.Group className="mb-3" controlId="formAddNewLocation">
+            <Form.Label>Enter location name</Form.Label>
+            <Form.Control 
+              type="text" 
+              placeholder="Special When Shit" 
+              onChange={onInput}
+              value={value}/>
+          </Form.Group>        
+      </Form>
+
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="secondary" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button variant="primary" onClick={onAddLocation}>
+          Save
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
+}
+
+
+
+function LocationPicker({locations, onSelectLocationClick, onAddLocationClick}) {
   return (
     <Navbar bg="light" expand="lg">
       <Container>
@@ -36,10 +90,14 @@ function LocationPicker({locations, onSelectLocationClick}) {
             <Nav className="ms-auto">
               <NavDropdown title="Locations" id="basic-nav-dropdown">
                 {locations.map((location) => (
-                  <NavDropdown.Item href="#" onClick={() => onSelectLocationClick(location)}>
-                  {location.name}
+                  <NavDropdown.Item key={location.id} href="#" onClick={() => onSelectLocationClick(location)}>
+                    {location.name}
                   </NavDropdown.Item>
                 ))}
+              <NavDropdown.Divider />
+              <NavDropdown.Item href="#" onClick={onAddLocationClick}>
+                Add new location
+              </NavDropdown.Item>              
               </NavDropdown>
             </Nav>
           </Navbar.Collapse>
@@ -51,13 +109,8 @@ function LocationPicker({locations, onSelectLocationClick}) {
 
 function RaffleButton({onRaffleClick}) {
   return (
-    <Button
-      variant="primary"
-      onClick={onRaffleClick}
-      size='lg'
-      className="fixed-width-button mx-1 my-2"
-    >
-    Randomize!
+    <Button variant='primary' onClick={onRaffleClick} size='lg' className='fixed-width-button mx-1 my-2'>
+      Randomize!
     </Button>
   );
 }
@@ -74,51 +127,19 @@ function GameButton({game, onButtonClick, onToggleGameDisabledClick, onRemoveGam
   const buttonText = isReserved ? `${game.abbreviation} (${game.reserved_minutes}m)` : game.abbreviation;
 
   return (
-    <OverlayTrigger
-            key={game.name}
-            placement='top'
-            overlay={
-              <Tooltip id='tooltip-top'>
-                <strong>{game.name}</strong>
-              </Tooltip>
-            }
-    >
-      <ButtonGroup
-        className="fixed-width-button mx-1 my-2"
-      >
-        <Button
-          title={game.name}
-          variant={variant}
-          disabled={isDisabled}
-          onClick={!isDisabled ? onButtonClick: null}
-        >
+    <OverlayTrigger placement='top'overlay={<Tooltip><strong>{game.name}</strong></Tooltip>}>
+      <ButtonGroup key={`buttongroup-${game.id}`} className="fixed-width-button mx-1 my-2">
+        <Button title={game.name} variant={variant} disabled={isDisabled} onClick={!isDisabled ? onButtonClick: null}>
           {buttonText}
-          </Button>
-            <DropdownButton
-              variant={variant}
-              as={ButtonGroup}
-              id='bg-nested-dropdown'
-              drop='end'
-            >
-              <Dropdown.Item
-                eventKey={Event.Disable}
-                onClick={onToggleGameDisabledClick}>{isDisabled ? 'Enable' : 'Disable'}
-              </Dropdown.Item>
-              <Dropdown.Item 
-                eventKey={Event.Update}>Update
-              </Dropdown.Item>
-              <Dropdown.Item 
-                eventKey={Event.Comment}>Comment
-              </Dropdown.Item>
-              <Dropdown.Item
-                eventKey={Event.Remove}
-                onClick={onRemoveGameClick}
-              >
-                  Remove
-              </Dropdown.Item>
-            </DropdownButton>
-        </ButtonGroup>
-      </OverlayTrigger>
+        </Button>
+          <DropdownButton variant={variant} as={ButtonGroup} id='bg-nested-dropdown' drop='end'>
+            <Dropdown.Item eventKey={Event.Disable} onClick={onToggleGameDisabledClick}>{isDisabled ? 'Enable' : 'Disable'}</Dropdown.Item>
+            <Dropdown.Item eventKey={Event.Update}>Update</Dropdown.Item>
+            <Dropdown.Item eventKey={Event.Comment}>Comment</Dropdown.Item>
+            <Dropdown.Item eventKey={Event.Remove} onClick={onRemoveGameClick}>Remove</Dropdown.Item>
+          </DropdownButton>
+      </ButtonGroup>
+    </OverlayTrigger>
   );
 }
 
@@ -129,6 +150,7 @@ function GameList({gameStates, selectedLocation, onGameClick, onToggleGameDisabl
         <Col>
           {gameStates.map((game, index) => (
             <GameButton
+              key={game.id}
               game={game}
               onButtonClick={() => onGameClick(index)}
               onToggleGameDisabledClick={() => onToggleGameDisabledClick(selectedLocation, game)}
@@ -146,6 +168,9 @@ function Raffler() {
   const [selectedLocation, setSelectedLocation] = React.useState(null);
   const [reservedGame, setReservedGame] = React.useState(null);
   const [gameStates, setGameStates] = React.useState([]);
+
+  // Modals
+  const [modalAddLocationShow, setModalAddLocationShow] = React.useState(false);
 
   React.useEffect(() => {
     const getLocations = async () => {
@@ -201,6 +226,10 @@ function Raffler() {
     setSelectedLocation(location);
   }
 
+  function onAddLocationClick() {
+    setModalAddLocationShow(true);
+  }
+
   async function onRemoveGameClick(location, game) {
     await API.remove(location.id, game.id);
     // Wasteful! This roundtrip could be avoided and only the
@@ -239,23 +268,24 @@ function Raffler() {
   }
 
   return (
-    <div class="container">
+    <div className="container">
       <div>
         <LocationPicker
           locations={locations}
           onSelectLocationClick={onSelectLocationClick}
+          onAddLocationClick={onAddLocationClick}
         />
       </div>
-      <div  class={selectedLocation ? 'visible': 'invisible'}>
-        <div class="text-center my-2">
+      <div  className={selectedLocation ? 'visible': 'invisible'}>
+        <div className="text-center my-2">
           <h1>{selectedLocation ? selectedLocation.name : ""}</h1>
         </div>
-        <div class="text-center my-2">
+        <div className="text-center my-2">
           <RaffleButton
             onRaffleClick={onRaffleClick}
           />
         </div>
-        <div class="fixed-height-selected-game my-2">
+        <div className="fixed-height-selected-game my-2">
             <h3>
               {reservedGame ? reservedGame.name : ''}
             </h3>
@@ -270,11 +300,19 @@ function Raffler() {
           />
         </div>
       </div>
+      <div>
+        <AddLocationModal
+          modalAddLocationShow={modalAddLocationShow}
+          setModalAddLocationShow={setModalAddLocationShow}
+          setLocations={setLocations}
+          setSelectedLocation={setSelectedLocation}
+          setReservedGame={setReservedGame}
+        />
+      </div>
     </div>
   );
 }
 
-ReactDOM.render(
-  <Raffler />,
-  document.getElementById('root')
-);
+const container = document.getElementById('root');
+const root = ReactDOM.createRoot(container);
+root.render(<Raffler />);

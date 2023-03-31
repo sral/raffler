@@ -117,5 +117,18 @@ export class API {
         .catch((error) => console.log(`Error: ${error}`));
     }
 
+    static async addLocation(name) {
+        return fetch(API_URL + `/v1/locations`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                name: name,
+            })
+        })
+        .then((response) => response.json())
+        .catch((error) => console.log(`Error: ${error}`));
+    }
 }
 
