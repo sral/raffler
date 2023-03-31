@@ -28,23 +28,28 @@ const Event = {
 
 
 function AddLocationModal({modalAddLocationShow, setModalAddLocationShow, setLocations, setSelectedLocation, setReservedGame}) {
-  const [value, setValue] = React.useState('')
+  const [value, setValue] = React.useState('');
 
+  const onInput = ({target:{value}}) => setValue(value);
+  const onSubmit = e => (e.preventDefault());
   const onClose = () => {
     setValue('');
     setModalAddLocationShow(false);
   };
-  const onInput = ({target:{value}}) => setValue(value);
-  const onSubmit = e => (e.preventDefault());
 
-  async function onAddLocation(e) {
-    setSelectedLocation(await API.addLocation(value));
-    setLocations(await API.getLocations());    
-    setValue('');
-    setReservedGame(null);
+  async function onAddLocation(e) {   
+    // I don't like this. Could this stuff be pushed up somehow so we don't need to
+    // pass in all the dependencies? Feels... bad man... and ugly!
+    if (value) {
+      setSelectedLocation(await API.addLocation(value));
+      setLocations(await API.getLocations());
+      setValue('');
+      setReservedGame(null);
+    }
+
     setModalAddLocationShow(false);
   }
-  
+
   return (
     <Modal show={modalAddLocationShow} onHide={onClose}>
       <Modal.Header closeButton>
@@ -53,14 +58,15 @@ function AddLocationModal({modalAddLocationShow, setModalAddLocationShow, setLoc
       <Modal.Body>
 
         <Form onSubmit={onSubmit}>
-          <Form.Group className="mb-3" controlId="formAddNewLocation">
+          <Form.Group className="mb-3" controlId="formAddLocation">
             <Form.Label>Enter location name</Form.Label>
-            <Form.Control 
-              type="text" 
-              placeholder="Special When Shit" 
+            <Form.Control
+              type="text"
+              placeholder="Ex: Special When Shit"
               onChange={onInput}
-              value={value}/>
-          </Form.Group>        
+              value={value}
+            />
+          </Form.Group>
       </Form>
 
       </Modal.Body>
@@ -76,18 +82,91 @@ function AddLocationModal({modalAddLocationShow, setModalAddLocationShow, setLoc
   );
 }
 
+function AddGameModal({modalAddGameShow, selectedLocation, setModalAddGameShow, setGameStates}) {
+  const [name, setName] = React.useState('');
+  const [abbreviation, setAbbreviation] = React.useState('');
+
+  const onInputName = ({target:{value}}) => setName(value);
+  const onInputAbbreviation = ({target:{value}}) => setAbbreviation(value);
+  const onSubmit = e => (e.preventDefault());
+  const onClose = () => {
+    setName('');
+    setAbbreviation('');
+    setModalAddGameShow(false);
+  };
 
 
-function LocationPicker({locations, onSelectLocationClick, onAddLocationClick}) {
+  async function onAddGame(e) {
+    // TODO: Add validation?
+
+    // I don't like this. Could this stuff be pushed up somehow so we don't need to
+    // pass in all the dependencies? Feels... bad man... and ugly!
+    await API.add(selectedLocation.id, name, abbreviation);
+
+    setGameStates(await API.getGames(selectedLocation.id));
+    setName('');
+    setAbbreviation('');
+    setModalAddGameShow(false);
+  }
+
+  return (
+    <Modal show={modalAddGameShow} onHide={onClose}>
+      <Modal.Header closeButton>
+        <Modal.Title>Add game</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+
+        <Form onSubmit={onSubmit}>
+          <Form.Group className="mb-3" controlId="formAddGameAbbreviation">
+            <Form.Label>Enter game abbreviation</Form.Label>
+            <Form.Control
+              type="text"
+              placeholder="Ex: IRMA"
+              onChange={onInputAbbreviation}
+              value={abbreviation}
+            />
+          </Form.Group>
+
+          <Form.Group className="mb-3" controlId="formAddGameName">
+            <Form.Label>Enter game name</Form.Label>
+            <Form.Control
+              type="text"
+              placeholder="Ex: Iron Maiden (Stern)"
+              onChange={onInputName}
+              value={name}
+            />
+          </Form.Group>
+      </Form>
+
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="secondary" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button variant="primary" onClick={onAddGame}>
+          Save
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
+}
+
+function LocationPicker({locations, selectedLocation, onSelectLocationClick, onAddLocationClick, onAddGameClick}) {
   return (
     <Navbar bg="light" expand="lg">
       <Container>
-        <Navbar.Brand
-          href="#">Razzle dazzle raffle!
+        <Navbar.Brand href="#">{selectedLocation ? selectedLocation.name : ''}
         </Navbar.Brand>
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
           <Navbar.Collapse id="basic-navbar-nav">
             <Nav className="ms-auto">
+              <Nav.Link 
+                href="#" 
+                variant="outline-secondary" 
+                disabled={selectedLocation ? false : true} 
+                onClick={onAddGameClick}>
+                  Add game
+              </Nav.Link>
               <NavDropdown title="Locations" id="basic-nav-dropdown">
                 {locations.map((location) => (
                   <NavDropdown.Item key={location.id} href="#" onClick={() => onSelectLocationClick(location)}>
@@ -97,7 +176,10 @@ function LocationPicker({locations, onSelectLocationClick, onAddLocationClick}) 
               <NavDropdown.Divider />
               <NavDropdown.Item href="#" onClick={onAddLocationClick}>
                 Add new location
-              </NavDropdown.Item>              
+              </NavDropdown.Item>
+              {/* <NavDropdown.Item href="#" disable={selectedLocation ? true : false}>
+                Delete location: {selectedLocation ? selectedLocation.name : ''}`
+              </NavDropdown.Item> */}
               </NavDropdown>
             </Nav>
           </Navbar.Collapse>
@@ -171,6 +253,7 @@ function Raffler() {
 
   // Modals
   const [modalAddLocationShow, setModalAddLocationShow] = React.useState(false);
+  const [modalAddGameShow, setModalAddGameShow] = React.useState(false);
 
   React.useEffect(() => {
     const getLocations = async () => {
@@ -230,6 +313,10 @@ function Raffler() {
     setModalAddLocationShow(true);
   }
 
+  function onAddGameClick() {
+    setModalAddGameShow(true);
+  }
+
   async function onRemoveGameClick(location, game) {
     await API.remove(location.id, game.id);
     // Wasteful! This roundtrip could be avoided and only the
@@ -272,14 +359,13 @@ function Raffler() {
       <div>
         <LocationPicker
           locations={locations}
+          selectedLocation={selectedLocation}
           onSelectLocationClick={onSelectLocationClick}
           onAddLocationClick={onAddLocationClick}
+          onAddGameClick={onAddGameClick}
         />
       </div>
       <div  className={selectedLocation ? 'visible': 'invisible'}>
-        <div className="text-center my-2">
-          <h1>{selectedLocation ? selectedLocation.name : ""}</h1>
-        </div>
         <div className="text-center my-2">
           <RaffleButton
             onRaffleClick={onRaffleClick}
@@ -291,7 +377,7 @@ function Raffler() {
             </h3>
         </div>
         <div>
-          <GameList 
+          <GameList
             gameStates={gameStates}
             selectedLocation={selectedLocation}
             onGameClick={onGameClick}
@@ -307,6 +393,12 @@ function Raffler() {
           setLocations={setLocations}
           setSelectedLocation={setSelectedLocation}
           setReservedGame={setReservedGame}
+        />
+        <AddGameModal
+          modalAddGameShow={modalAddGameShow} 
+          selectedLocation={selectedLocation} 
+          setModalAddGameShow={setModalAddGameShow} 
+          setGameStates={setGameStates}
         />
       </div>
     </div>
