@@ -1,134 +1,146 @@
 const API_URL = 'http://localhost:8000';
 
-// TODO:
-//   - Add error handling, ex 404s
-//   - Organise API, ex API.Games.reserve()
+const request = async (url, options) => {
+  const response = await fetch(url, options);
+  if (!response.ok) {
+    throw new Error(`Error: ${response.status}`);
+  }
+  
+  return response.json()
+  .catch((error) => {
+    // TODO: Ugly handling of enpoints which do not return json.
+    return null;
+  });
+};
 
-export class API {
-    static async reserveRandom(locationId) {
-        return fetch(API_URL + `/v1/locations/${locationId}/games/reservations`, {
-            method: 'POST',
-            headers: {
-                "Content-Type": "application/json",
-            },
-        })
-        .then((response) => response.json())
-        .catch((error) => console.log(`Error: ${error}`));
+export const API = {
+  games: {
+    getAll: async (locationId) => {
+      const url = `${API_URL}/v1/locations/${locationId}/games`;
+      const options = {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      };
+      return request(url, options);
+    },
+    
+    reserveRandom: async (locationId) => {
+      const url = `${API_URL}/v1/locations/${locationId}/games/reservations`;
+      const options = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      };
+      return request(url, options);
+    },
+    
+    reserve: async (locationId, gameId) => {
+      const url = `${API_URL}/v1/locations/${locationId}/games/${gameId}/reservations`;
+      const options = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      };
+      return request(url, options);
+    },
+    
+    release: async (locationId, gameId) => {
+      const url = `${API_URL}/v1/locations/${locationId}/games/${gameId}/reservations`;
+      const options = {
+        method: 'DELETE',
+      };
+      return request(url, options);
+    },
+    
+    remove: async (locationId, gameId) => {
+      const url = `${API_URL}/v1/locations/${locationId}/games/${gameId}`;
+      const options = {
+        method: 'DELETE',
+      };
+      return request(url, options);
+    },
+    
+    enable: async (locationId, gameId) => {
+      const url = `${API_URL}/v1/locations/${locationId}/games/${gameId}/enable`;
+      const options = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      };
+      return request(url, options);
+    },
+    
+    disable: async (locationId, gameId) => {
+      const url = `${API_URL}/v1/locations/${locationId}/games/${gameId}/disable`;
+      const options = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      };
+      return request(url, options);
+    },
+    
+    add: async (locationId, name, abbreviation) => {
+      const url = `${API_URL}/v1/locations/${locationId}/games`;
+      const options = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name,
+          abbreviation,
+        }),
+      };
+      return request(url, options);
+    },
+    
+    update: async (locationId, gameId, name, abbreviation) => {
+      const url = `${API_URL}/v1/locations/${locationId}/games/${gameId}`;
+      const options = {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name,
+          abbreviation,
+        }),
+      };
+      return request(url, options);
+    },
+  },
+  
+  locations: {
+    getAll: async () => {
+      const url = `${API_URL}/v1/locations`;
+      const options = {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      };
+      return request(url, options);
+    },
+    
+    add: async (name) => {
+      const url = `${API_URL}/v1/locations`;
+      const options = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name,
+        }),
+      };
+      return request(url, options);
     }
-
-    static async reserve(locationId, gameId) {
-        return fetch(API_URL + `/v1/locations/${locationId}/games/${gameId}/reservations`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        })
-        .then((response) => response.json())
-        .catch((error) => console.log(`Error: ${error}`));
-    }
-
-    static async release(locationId, gameId) {
-        return fetch(API_URL + `/v1/locations/${locationId}/games/${gameId}/reservations`, {
-            method: 'DELETE',
-        })
-        .then((response) => null)
-        .catch((error) => console.log(`Error: ${error}`));
-    }
-
-    static async remove(locationId, gameId) {
-        return fetch(API_URL + `/v1/locations/${locationId}/games/${gameId}`, {
-            method: 'DELETE',
-        })
-        .then((response) => null)
-        .catch((error) => console.log(`Error: ${error}`));
-    }
-
-    static async enable(locationId, gameId) {
-        return fetch(API_URL + `/v1/locations/${locationId}/games/${gameId}/enable`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        })
-        .then((response) => null)
-        .catch((error) => console.log(`Error: ${error}`));
-    }
-
-    static async disable(locationId, gameId) {
-        return fetch(API_URL + `/v1/locations/${locationId}/games/${gameId}/disable`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        })
-        .then((response) => null)
-        .catch((error) => console.log(`Error: ${error}`));
-    }
-
-    static async add(locationId, name, abbreviation) {
-        return fetch(API_URL + `/v1/locations/${locationId}/games`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                name: name,
-                abbreviation: abbreviation,
-            })
-        })
-        .then((response) => response.json())
-        .catch((error) => console.log(`Error: ${error}`));
-    }
-
-    static async update(locationId, gameId, name, abbreviation) {
-        return fetch(API_URL + `/v1/locations/${locationId}/games/${gameId}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                name: name,
-                abbreviation: abbreviation,
-            })
-        })
-        .then((response) => response.json())
-        .catch((error) => console.log(`Error: ${error}`));
-    }
-
-    static async getGames(locationId) {
-        return fetch(API_URL + `/v1/locations/${locationId}/games`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        })
-        .then((response) => response.json())
-        .catch((error) => console.log(`Error: ${error}`));
-    }
-
-    static async getLocations() {
-        return fetch(API_URL + '/v1/locations', {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        })
-        .then((response) => response.json())
-        .catch((error) => console.log(`Error: ${error}`));
-    }
-
-    static async addLocation(name) {
-        return fetch(API_URL + `/v1/locations`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                name: name,
-            })
-        })
-        .then((response) => response.json())
-        .catch((error) => console.log(`Error: ${error}`));
-    }
-}
-
+  }
+};

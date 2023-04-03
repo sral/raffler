@@ -37,12 +37,12 @@ function AddLocationModal({modalAddLocationShow, setModalAddLocationShow, setLoc
     setModalAddLocationShow(false);
   };
 
-  async function onAddLocation(e) {   
+  async function onAddLocation(e) {
     // I don't like this. Could this stuff be pushed up somehow so we don't need to
     // pass in all the dependencies? Feels... bad man... and ugly!
     if (value) {
-      setSelectedLocation(await API.addLocation(value));
-      setLocations(await API.getLocations());
+      setSelectedLocation(await API.locations.add(value));
+      setLocations(await API.locations.getAll());
       setValue('');
       setReservedGame(null);
     }
@@ -101,9 +101,9 @@ function AddGameModal({modalAddGameShow, selectedLocation, setModalAddGameShow, 
 
     // I don't like this. Could this stuff be pushed up somehow so we don't need to
     // pass in all the dependencies? Feels... bad man... and ugly!
-    await API.add(selectedLocation.id, name, abbreviation);
+    await API.games.add(selectedLocation.id, name, abbreviation);
 
-    setGameStates(await API.getGames(selectedLocation.id));
+    setGameStates(await API.games.getAll(selectedLocation.id));
     setName('');
     setAbbreviation('');
     setModalAddGameShow(false);
@@ -160,10 +160,10 @@ function LocationPicker({locations, selectedLocation, onSelectLocationClick, onA
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
           <Navbar.Collapse id="basic-navbar-nav">
             <Nav className="ms-auto">
-              <Nav.Link 
-                href="#" 
-                variant="outline-secondary" 
-                disabled={selectedLocation ? false : true} 
+              <Nav.Link
+                href="#"
+                variant="outline-secondary"
+                disabled={selectedLocation ? false : true}
                 onClick={onAddGameClick}>
                   Add game
               </Nav.Link>
@@ -257,7 +257,7 @@ function Raffler() {
 
   React.useEffect(() => {
     const getLocations = async () => {
-      setLocations(await API.getLocations());
+      setLocations(await API.locations.getAll());
     }
 
     getLocations();
@@ -266,7 +266,7 @@ function Raffler() {
   React.useEffect(() => {
     const getGameStates = async () => {
       if (selectedLocation) {
-        setGameStates(await API.getGames(selectedLocation.id));
+        setGameStates(await API.games.getAll(selectedLocation.id));
       }
     }
 
@@ -275,28 +275,28 @@ function Raffler() {
 
 
   async function onRaffleClick() {
-    setReservedGame(await API.reserveRandom(selectedLocation.id));
+    setReservedGame(await API.games.reserveRandom(selectedLocation.id));
     // Wasteful! This roundtrip could be avoided and only the
     // affected game could be updated. On the plus side this
     // probably helps keep UI slightly more in sync if we have
     // concurrent user fiddling with things.
-    setGameStates(await API.getGames(selectedLocation.id));
+    setGameStates(await API.games.getAll(selectedLocation.id));
   }
 
   async function onGameClick(i) {
     const game = gameStates[i];
 
     if (game.reserved_at) {
-      await API.release(selectedLocation.id, game.id);
+      await API.games.release(selectedLocation.id, game.id);
     } else {
-      await API.reserve(selectedLocation.id, game.id);
+      await API.games.reserve(selectedLocation.id, game.id);
       setReservedGame(game);
     }
     // Wasteful! This roundtrip could be avoided and only the
     // affected game could be updated. On the plus side this
     // probably helps keep UI slightly more in sync if we have
     // concurrent user fiddling with things.
-    setGameStates(await API.getGames(selectedLocation.id));
+    setGameStates(await API.games.getAll(selectedLocation.id));
   }
 
   function onSelectLocationClick(location) {
@@ -318,21 +318,21 @@ function Raffler() {
   }
 
   async function onRemoveGameClick(location, game) {
-    await API.remove(location.id, game.id);
+    await API.games.remove(location.id, game.id);
     // Wasteful! This roundtrip could be avoided and only the
     // affected game could be updated. On the plus side this
     // probably helps keep UI slightly more in sync if we have
     // concurrent user fiddling with things.
-    setGameStates(await API.getGames(selectedLocation.id));
+    setGameStates(await API.games.getAll(selectedLocation.id));
   }
 
   async function onUpdateGameClick(location, updatedName, updatedabbreviation) {
-    await API.update(location.id, game.id, updatedName, updatedabbreviation);
+    await API.games.update(location.id, game.id, updatedName, updatedabbreviation);
     // Wasteful! This roundtrip could be avoided and only the
     // affected game could be updated. On the plus side this
     // probably helps keep UI slightly more in sync if we have
     // concurrent user fiddling with things.
-    setGameStates(await API.getGames(selectedLocation.id));
+    setGameStates(await API.games.getAll(selectedLocation.id));
   }
 
   async function onToggleGameDisabledClick(location, game) {
@@ -340,18 +340,18 @@ function Raffler() {
     const isReserved = game.reserved_at;
 
     if (isDisabled) {
-      await API.enable(location.id, game.id);
+      await API.games.enable(location.id, game.id);
     } else {
       if (isReserved) {
-        await API.release(location.id, game.id);
+        await API.games.release(location.id, game.id);
       }
-      await API.disable(location.id, game.id);
+      await API.games.disable(location.id, game.id);
     }
     // Wasteful! This roundtrip could be avoided and only the
     // affected game could be updated. On the plus side this
     // probably helps keep UI slightly more in sync if we have
     // concurrent user fiddling with things.
-    setGameStates(await API.getGames(selectedLocation.id));
+    setGameStates(await API.games.getAll(selectedLocation.id));
   }
 
   return (
@@ -395,9 +395,9 @@ function Raffler() {
           setReservedGame={setReservedGame}
         />
         <AddGameModal
-          modalAddGameShow={modalAddGameShow} 
-          selectedLocation={selectedLocation} 
-          setModalAddGameShow={setModalAddGameShow} 
+          modalAddGameShow={modalAddGameShow}
+          selectedLocation={selectedLocation}
+          setModalAddGameShow={setModalAddGameShow}
           setGameStates={setGameStates}
         />
       </div>
