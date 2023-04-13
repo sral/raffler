@@ -254,7 +254,6 @@ function Raffler() {
   // Modals
   const [modalAddLocationShow, setModalAddLocationShow] = React.useState(false);
   const [modalAddGameShow, setModalAddGameShow] = React.useState(false);
-  const [modalAddCommenteShow, setModalAddCommentShow] = React.useState(false);
 
   React.useEffect(() => {
     const getLocations = async () => {
@@ -316,10 +315,6 @@ function Raffler() {
 
   function onAddGameClick() {
     setModalAddGameShow(true);
-  }
-
-  function onAddCommentClick() {
-    setModalAddCommentShow(true);
   }
 
   async function onRemoveGameClick(location, game) {
