@@ -142,5 +142,29 @@ export const API = {
       };
       return request(url, options);
     }
+  },
+
+  notes: {
+    add: async (locationId, gameId, note) => {
+      const url = `${API_URL}/v1/locations/${locationId}/games/${gameId}/notes`;
+      const options = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          note,
+        }),
+      };
+      return request(url, options);
+    },
+
+    remove: async (locationId, gameId, noteId) => {
+      const url = `${API_URL}/v1/locations/${locationId}/games/${gameId}/notes/${noteId}`;
+      const options = {
+        method: 'DELETE',
+      };
+      return request(url, options);
+    },
   }
 };

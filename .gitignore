@@ -1,6 +1,8 @@
 .vscode/
 /target
 /tmp
+/dist
 node_modules/
 package-lock.json
 package.json
+babel.config.json

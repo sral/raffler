@@ -254,6 +254,7 @@ function Raffler() {
   // Modals
   const [modalAddLocationShow, setModalAddLocationShow] = React.useState(false);
   const [modalAddGameShow, setModalAddGameShow] = React.useState(false);
+  const [modalAddCommenteShow, setModalAddCommentShow] = React.useState(false);
 
   React.useEffect(() => {
     const getLocations = async () => {
@@ -317,7 +318,15 @@ function Raffler() {
     setModalAddGameShow(true);
   }
 
+  function onAddCommentClick() {
+    setModalAddCommentShow(true);
+  }
+
   async function onRemoveGameClick(location, game) {
+    if (!window.confirm("Are you sure?")) {
+      return;
+    }
+
     await API.games.remove(location.id, game.id);
     // Wasteful! This roundtrip could be avoided and only the
     // affected game could be updated. On the plus side this
