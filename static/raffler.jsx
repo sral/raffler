@@ -1,6 +1,6 @@
 import {API} from './api.js';
 
-// TODO: Clean this crap up once imports are sorted etc.
+// TODO: Clean this crap up once imports are fixed.
 const Button = ReactBootstrap.Button;
 const ButtonGroup = ReactBootstrap.ButtonGroup;
 const Col = ReactBootstrap.Col;
@@ -21,9 +21,9 @@ const API_URL = 'http://localhost:8000';
 
 const Event = {
   Disable: "disable",
-  Comment: "comment",
   Update: "update",
   Remove: "remove",
+  Details: "details",
 }
 
 
@@ -155,7 +155,7 @@ function LocationPicker({locations, selectedLocation, onSelectLocationClick, onA
   return (
     <Navbar bg="light" expand="lg">
       <Container>
-        <Navbar.Brand href="#">{selectedLocation ? selectedLocation.name : ''}
+        <Navbar.Brand>{selectedLocation ? selectedLocation.name : ''}
         </Navbar.Brand>
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
           <Navbar.Collapse id="basic-navbar-nav">
@@ -217,8 +217,8 @@ function GameButton({game, onButtonClick, onToggleGameDisabledClick, onRemoveGam
           <DropdownButton variant={variant} as={ButtonGroup} id='bg-nested-dropdown' drop='end'>
             <Dropdown.Item eventKey={Event.Disable} onClick={onToggleGameDisabledClick}>{isDisabled ? 'Enable' : 'Disable'}</Dropdown.Item>
             <Dropdown.Item eventKey={Event.Update}>Update</Dropdown.Item>
-            <Dropdown.Item eventKey={Event.Comment}>Comment</Dropdown.Item>
             <Dropdown.Item eventKey={Event.Remove} onClick={onRemoveGameClick}>Remove</Dropdown.Item>
+            <Dropdown.Item eventKey={Event.Details}>Details</Dropdown.Item>            
           </DropdownButton>
       </ButtonGroup>
     </OverlayTrigger>
