@@ -20,34 +20,41 @@ const Tooltip = ReactBootstrap.Tooltip;
 const API_URL = 'http://localhost:8000';
 
 const Event = {
-  Disable: "disable",
-  Update: "update",
-  Remove: "remove",
-  Details: "details",
-}
+  Disable: 'disable',
+  Update: 'update',
+  Remove: 'remove',
+  Details: 'details',
+};
 
-
-function AddLocationModal({modalAddLocationShow, setModalAddLocationShow, setLocations, setSelectedLocation, setReservedGame}) {
+function AddLocationModal({
+  modalAddLocationShow,
+  setModalAddLocationShow,
+  setLocations,
+  setSelectedLocation,
+  setReservedGame,
+}) {
   const [value, setValue] = React.useState('');
 
-  const onInput = ({target:{value}}) => setValue(value);
-  const onSubmit = e => (e.preventDefault());
+  const onInput = (event) => setValue(event.target.value);
+  const onSubmit = (event) => event.preventDefault();
   const onClose = () => {
     setValue('');
     setModalAddLocationShow(false);
   };
 
-  async function onAddLocation(e) {
-    // I don't like this. Could this stuff be pushed up somehow so we don't need to
-    // pass in all the dependencies? Feels... bad man... and ugly!
+  async function onAddLocation(event) {
     if (value) {
-      setSelectedLocation(await API.locations.add(value));
-      setLocations(await API.locations.getAll());
-      setValue('');
-      setReservedGame(null);
+      try {
+        const newLocation = await API.locations.add(value);
+        setSelectedLocation(newLocation);
+        setLocations((locations) => [...locations, newLocation]);
+        setValue('');
+        setReservedGame(null);
+        setModalAddLocationShow(false);
+      } catch (error) {
+        console.error('Error adding location', error);
+      }
     }
-
-    setModalAddLocationShow(false);
   }
 
   return (
@@ -56,7 +63,6 @@ function AddLocationModal({modalAddLocationShow, setModalAddLocationShow, setLoc
         <Modal.Title>Add new location</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-
         <Form onSubmit={onSubmit}>
           <Form.Group className="mb-3" controlId="formAddLocation">
             <Form.Label>Enter location name</Form.Label>
@@ -67,8 +73,7 @@ function AddLocationModal({modalAddLocationShow, setModalAddLocationShow, setLoc
               value={value}
             />
           </Form.Group>
-      </Form>
-
+        </Form>
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onClose}>
@@ -82,48 +87,45 @@ function AddLocationModal({modalAddLocationShow, setModalAddLocationShow, setLoc
   );
 }
 
-function AddGameModal({modalAddGameShow, selectedLocation, setModalAddGameShow, setGameStates}) {
+function AddGameModal({ modalAddGameShow, selectedLocation, setModalAddGameShow, setGameStates }) {
   const [name, setName] = React.useState('');
   const [abbreviation, setAbbreviation] = React.useState('');
 
-  const onInputName = ({target:{value}}) => setName(value);
-  const onInputAbbreviation = ({target:{value}}) => setAbbreviation(value);
-  const onSubmit = e => (e.preventDefault());
-  const onClose = () => {
+  const handleInputName = (event) => setName(event.target.value);
+  const handleInputAbbreviation = (event) => setAbbreviation(event.target.value);
+  const handleClose = () => {
     setName('');
     setAbbreviation('');
     setModalAddGameShow(false);
   };
 
-
-  async function onAddGame(e) {
+  const handleAddGame = async () => {
     // TODO: Add validation?
-
-    // I don't like this. Could this stuff be pushed up somehow so we don't need to
-    // pass in all the dependencies? Feels... bad man... and ugly!
-    await API.games.add(selectedLocation.id, name, abbreviation);
-
-    setGameStates(await API.games.getAll(selectedLocation.id));
-    setName('');
-    setAbbreviation('');
-    setModalAddGameShow(false);
-  }
+    try {
+      await API.games.add(selectedLocation.id, name, abbreviation);
+      setGameStates(await API.games.getAll(selectedLocation.id));
+      setName('');
+      setAbbreviation('');
+      setModalAddGameShow(false);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   return (
-    <Modal show={modalAddGameShow} onHide={onClose}>
+    <Modal show={modalAddGameShow} onHide={handleClose}>
       <Modal.Header closeButton>
         <Modal.Title>Add game</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-
-        <Form onSubmit={onSubmit}>
+        <Form onSubmit={(event) => event.preventDefault()}>
           <Form.Group className="mb-3" controlId="formAddGameAbbreviation">
             <Form.Label>Enter game abbreviation</Form.Label>
             <Form.Control
               type="text"
               placeholder="Ex: IRMA"
-              onChange={onInputAbbreviation}
               value={abbreviation}
+              onChange={handleInputAbbreviation}
             />
           </Form.Group>
 
@@ -132,18 +134,17 @@ function AddGameModal({modalAddGameShow, selectedLocation, setModalAddGameShow, 
             <Form.Control
               type="text"
               placeholder="Ex: Iron Maiden (Stern)"
-              onChange={onInputName}
               value={name}
+              onChange={handleInputName}
             />
           </Form.Group>
-      </Form>
-
+        </Form>
       </Modal.Body>
       <Modal.Footer>
-        <Button variant="secondary" onClick={onClose}>
+        <Button variant="secondary" onClick={handleClose}>
           Cancel
         </Button>
-        <Button variant="primary" onClick={onAddGame}>
+        <Button variant="primary" onClick={handleAddGame}>
           Save
         </Button>
       </Modal.Footer>
@@ -151,45 +152,61 @@ function AddGameModal({modalAddGameShow, selectedLocation, setModalAddGameShow, 
   );
 }
 
-function LocationPicker({locations, selectedLocation, onSelectLocationClick, onAddLocationClick, onAddGameClick}) {
+function LocationPicker({ locations, selectedLocation, onSelectLocationClick, onAddLocationClick, onAddGameClick }) {
+  const renderAddGameButton = () => {
+    if (!selectedLocation) {
+      return null;
+    }
+
+    return (
+      <Nav.Link
+        href="#"
+        variant="outline-secondary"
+        onClick={onAddGameClick}
+      >
+        Add game
+      </Nav.Link>
+    );
+  };
+
+  const renderLocationsDropdown = () => (
+    <NavDropdown title="Locations" id="basic-nav-dropdown">
+      {locations.map((location) => (
+        <NavDropdown.Item
+          key={location.id}
+          href="#"
+          onClick={() => onSelectLocationClick(location)}
+        >
+          {location.name}
+        </NavDropdown.Item>
+      ))}
+      <NavDropdown.Divider />
+      <NavDropdown.Item href="#" onClick={onAddLocationClick}>
+        Add new location
+      </NavDropdown.Item>
+      {/* <NavDropdown.Item href="#" disable={selectedLocation ? true : false}>
+        Delete location: {selectedLocation ? selectedLocation.name : ''}
+      </NavDropdown.Item> */}
+    </NavDropdown>
+  );
+
   return (
     <Navbar bg="light" expand="lg">
       <Container>
-        <Navbar.Brand>{selectedLocation ? selectedLocation.name : ''}
-        </Navbar.Brand>
+        <Navbar.Brand>{selectedLocation?.name}</Navbar.Brand>
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
-          <Navbar.Collapse id="basic-navbar-nav">
-            <Nav className="ms-auto">
-              <Nav.Link
-                href="#"
-                variant="outline-secondary"
-                disabled={selectedLocation ? false : true}
-                onClick={onAddGameClick}>
-                  Add game
-              </Nav.Link>
-              <NavDropdown title="Locations" id="basic-nav-dropdown">
-                {locations.map((location) => (
-                  <NavDropdown.Item key={location.id} href="#" onClick={() => onSelectLocationClick(location)}>
-                    {location.name}
-                  </NavDropdown.Item>
-                ))}
-              <NavDropdown.Divider />
-              <NavDropdown.Item href="#" onClick={onAddLocationClick}>
-                Add new location
-              </NavDropdown.Item>
-              {/* <NavDropdown.Item href="#" disable={selectedLocation ? true : false}>
-                Delete location: {selectedLocation ? selectedLocation.name : ''}`
-              </NavDropdown.Item> */}
-              </NavDropdown>
-            </Nav>
-          </Navbar.Collapse>
+        <Navbar.Collapse id="basic-navbar-nav">
+          <Nav className="ms-auto">
+            {renderAddGameButton()}
+            {renderLocationsDropdown()}
+          </Nav>
+        </Navbar.Collapse>
       </Container>
     </Navbar>
-    );
-  }
+  );
+}
 
-
-function RaffleButton({onRaffleClick}) {
+function RandomizeButton({ onRaffleClick }) {
   return (
     <Button variant='primary' onClick={onRaffleClick} size='lg' className='fixed-width-button mx-1 my-2'>
       Randomize!
@@ -197,29 +214,34 @@ function RaffleButton({onRaffleClick}) {
   );
 }
 
-function GameButton({game, onButtonClick, onToggleGameDisabledClick, onRemoveGameClick}) {
-  const isDisabled = game.disabled_at;
-  const isReserved = game.reserved_at;
+function GameButton({ game, onButtonClick, onToggleGameDisabledClick, onRemoveGameClick }) {
+  const { name, abbreviation, disabled_at, reserved_at, reserved_minutes } = game;
 
-  let variant = isReserved ? 'danger' : 'success';
-  if (isDisabled) {
-    variant = 'secondary';
-  }
+  const isDisabled = Boolean(disabled_at);
+  const isReserved = Boolean(reserved_at);
 
-  const buttonText = isReserved ? `${game.abbreviation} (${game.reserved_minutes}m)` : game.abbreviation;
+  const buttonVariant = isReserved ? 'danger' : (isDisabled ? 'secondary' : 'success');
+  const buttonText = isReserved ? `${abbreviation} (${reserved_minutes}m)` : abbreviation;
+
+  const handleButtonClick = () => {
+    if (!isDisabled) {
+      onButtonClick();
+    }
+  };
 
   return (
-    <OverlayTrigger placement='top'overlay={<Tooltip><strong>{game.name}</strong></Tooltip>}>
+    <OverlayTrigger placement='top' overlay={<Tooltip><strong>{name}</strong></Tooltip>}>
       <ButtonGroup key={`buttongroup-${game.id}`} className="fixed-width-button mx-1 my-2">
-        <Button title={game.name} variant={variant} disabled={isDisabled} onClick={!isDisabled ? onButtonClick: null}>
+        <Button title={name} variant={buttonVariant} disabled={isDisabled} onClick={handleButtonClick}>
           {buttonText}
         </Button>
-          <DropdownButton variant={variant} as={ButtonGroup} id='bg-nested-dropdown' drop='end'>
-            <Dropdown.Item eventKey={Event.Disable} onClick={onToggleGameDisabledClick}>{isDisabled ? 'Enable' : 'Disable'}</Dropdown.Item>
-            <Dropdown.Item eventKey={Event.Update}>Update</Dropdown.Item>
-            <Dropdown.Item eventKey={Event.Remove} onClick={onRemoveGameClick}>Remove</Dropdown.Item>
-            <Dropdown.Item eventKey={Event.Details}>Details</Dropdown.Item>            
-          </DropdownButton>
+        <DropdownButton variant={buttonVariant} as={ButtonGroup} id='bg-nested-dropdown' drop='end'>
+          <Dropdown.Item eventKey={Event.Disable} onClick={onToggleGameDisabledClick}>
+            {isDisabled ? 'Enable' : 'Disable'}
+          </Dropdown.Item>
+          <Dropdown.Item eventKey={Event.Remove} onClick={onRemoveGameClick}>Remove</Dropdown.Item>
+          <Dropdown.Item eventKey={Event.Details}>Details</Dropdown.Item>
+        </DropdownButton>
       </ButtonGroup>
     </OverlayTrigger>
   );
@@ -274,7 +296,7 @@ function Raffler() {
   }, [selectedLocation]);
 
 
-  async function onRaffleClick() {
+  async function onRandomizeClick() {
     setReservedGame(await API.games.reserveRandom(selectedLocation.id));
     // Wasteful! This roundtrip could be avoided and only the
     // affected game could be updated. On the plus side this
@@ -330,15 +352,6 @@ function Raffler() {
     setGameStates(await API.games.getAll(selectedLocation.id));
   }
 
-  async function onUpdateGameClick(location, updatedName, updatedabbreviation) {
-    await API.games.update(location.id, game.id, updatedName, updatedabbreviation);
-    // Wasteful! This roundtrip could be avoided and only the
-    // affected game could be updated. On the plus side this
-    // probably helps keep UI slightly more in sync if we have
-    // concurrent user fiddling with things.
-    setGameStates(await API.games.getAll(selectedLocation.id));
-  }
-
   async function onToggleGameDisabledClick(location, game) {
     const isDisabled = game.disabled_at;
     const isReserved = game.reserved_at;
@@ -359,20 +372,21 @@ function Raffler() {
   }
 
   return (
-    <div className="container">
-      <div>
+    <div className="container-fluid">
+      <header>
         <LocationPicker
-          locations={locations}
-          selectedLocation={selectedLocation}
-          onSelectLocationClick={onSelectLocationClick}
-          onAddLocationClick={onAddLocationClick}
-          onAddGameClick={onAddGameClick}
+        locations={locations}
+        selectedLocation={selectedLocation}
+        onSelectLocationClick={onSelectLocationClick}
+        onAddLocationClick={onAddLocationClick}
+        onAddGameClick={onAddGameClick}
         />
-      </div>
+      </header>
+
       <div  className={selectedLocation ? 'visible': 'invisible'}>
         <div className="text-center my-2">
-          <RaffleButton
-            onRaffleClick={onRaffleClick}
+          <RandomizeButton
+            onRaffleClick={onRandomizeClick}
           />
         </div>
         <div className="fixed-height-selected-game my-2">
@@ -390,21 +404,19 @@ function Raffler() {
           />
         </div>
       </div>
-      <div>
-        <AddLocationModal
-          modalAddLocationShow={modalAddLocationShow}
-          setModalAddLocationShow={setModalAddLocationShow}
-          setLocations={setLocations}
-          setSelectedLocation={setSelectedLocation}
-          setReservedGame={setReservedGame}
-        />
-        <AddGameModal
-          modalAddGameShow={modalAddGameShow}
-          selectedLocation={selectedLocation}
-          setModalAddGameShow={setModalAddGameShow}
-          setGameStates={setGameStates}
-        />
-      </div>
+      <AddLocationModal
+        modalAddLocationShow={modalAddLocationShow}
+        setModalAddLocationShow={setModalAddLocationShow}
+        setLocations={setLocations}
+        setSelectedLocation={setSelectedLocation}
+        setReservedGame={setReservedGame}
+      />
+      <AddGameModal
+        modalAddGameShow={modalAddGameShow}
+        selectedLocation={selectedLocation}
+        setModalAddGameShow={setModalAddGameShow}
+        setGameStates={setGameStates}
+      />
     </div>
   );
 }
