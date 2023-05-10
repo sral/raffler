@@ -15,6 +15,17 @@ const request = async (url, options) => {
 
 export const API = {
   games: {
+    get: async (locationId, gameId) => {
+      const url = `${API_URL}/v1/locations/${locationId}/games/${gameId}`;
+      const options = {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      };
+      return request(url, options);
+    },
+
     getAll: async (locationId) => {
       const url = `${API_URL}/v1/locations/${locationId}/games`;
       const options = {

@@ -8,6 +8,7 @@ const Container = ReactBootstrap.Container;
 const Dropdown = ReactBootstrap.Dropdown;
 const DropdownButton = ReactBootstrap.DropdownButton;
 const Form = ReactBootstrap.Form;
+const ListGroup = ReactBootstrap.ListGroup;
 const Modal = ReactBootstrap.Modal;
 const Nav = ReactBootstrap.Nav;
 const Navbar = ReactBootstrap.Navbar;
@@ -26,6 +27,77 @@ const Event = {
   Details: 'details',
 };
 
+function Notes({ notes }) {
+  return (
+    <ListGroup variant="flush">
+      {notes.map((note) => (
+        <ListGroup.Item key={note.id}>{note.note}</ListGroup.Item>
+      ))}
+    </ListGroup>
+  );
+}
+
+function GameDetailsModal({
+  gameDetails,
+  modalGameDetailsShow,
+  setGameDetails,
+  setModalGameDetailsShow,
+  selectedLocation,
+}) {
+  const [value, setValue] = React.useState('');
+
+  const onAddNote = async () => {
+    if (value.trim() !== '') {
+      await API.notes.add(selectedLocation.id, gameDetails.id, value);
+      setGameDetails((prevDetails) => {
+        const updatedDetails = { ...prevDetails };
+        updatedDetails.notes.push(value);
+        return updatedDetails;
+      });
+    }
+
+    setValue('');
+  };
+
+  const onInput = (event) => {
+    const inputValue = event.target.value;
+    setValue(inputValue);
+  };
+
+  const onSubmit = (event) => {
+    event.preventDefault();
+    onAddNote();
+  };
+
+  const onClose = () => {
+    setModalGameDetailsShow(false);
+    setGameDetails(null);
+  };
+
+  return (
+    <Modal show={modalGameDetailsShow} onHide={onClose}>
+      <Modal.Header closeButton>
+        <Modal.Title>{gameDetails?.name || ''} ({gameDetails?.abbreviation || ''})</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Notes notes={gameDetails?.notes || []} />
+        <Form onSubmit={onSubmit}>
+          <Form.Group className="mb-3" controlId="formAddNote">
+            <div className="d-flex">
+              <Form.Control
+                type="text"
+                placeholder="Ex: Autoplunger is infested with cows"
+                onChange={onInput}
+                value={value}
+              />
+              <Button variant="primary" type="submit">Save</Button>
+            </div>
+          </Form.Group>
+        </Form>
+      </Modal.Body>
+    </Modal>
+  );
+}
 function AddLocationModal({
   modalAddLocationShow,
   setModalAddLocationShow,
@@ -171,7 +243,7 @@ function LocationPicker({ locations, selectedLocation, onSelectLocationClick, on
 
   const renderLocationsDropdown = () => (
     <NavDropdown title="Locations" id="basic-nav-dropdown">
-      {locations.map((location) => (
+      {locations.map(location => (
         <NavDropdown.Item
           key={location.id}
           href="#"
@@ -184,9 +256,6 @@ function LocationPicker({ locations, selectedLocation, onSelectLocationClick, on
       <NavDropdown.Item href="#" onClick={onAddLocationClick}>
         Add new location
       </NavDropdown.Item>
-      {/* <NavDropdown.Item href="#" disable={selectedLocation ? true : false}>
-        Delete location: {selectedLocation ? selectedLocation.name : ''}
-      </NavDropdown.Item> */}
     </NavDropdown>
   );
 
@@ -214,7 +283,7 @@ function RandomizeButton({ onRaffleClick }) {
   );
 }
 
-function GameButton({ game, onButtonClick, onToggleGameDisabledClick, onRemoveGameClick }) {
+function GameButton({ game, onButtonClick, onToggleGameDisabledClick, onRemoveGameClick, onGameDetailsClick }) {
   const { name, abbreviation, disabled_at, reserved_at, reserved_minutes } = game;
 
   const isDisabled = Boolean(disabled_at);
@@ -240,14 +309,14 @@ function GameButton({ game, onButtonClick, onToggleGameDisabledClick, onRemoveGa
             {isDisabled ? 'Enable' : 'Disable'}
           </Dropdown.Item>
           <Dropdown.Item eventKey={Event.Remove} onClick={onRemoveGameClick}>Remove</Dropdown.Item>
-          <Dropdown.Item eventKey={Event.Details}>Details</Dropdown.Item>
+          <Dropdown.Item eventKey={Event.Details} onClick={onGameDetailsClick}>Details</Dropdown.Item>
         </DropdownButton>
       </ButtonGroup>
     </OverlayTrigger>
   );
 }
 
-function GameList({gameStates, selectedLocation, onGameClick, onToggleGameDisabledClick, onRemoveGameClick}) {
+function GameList({ gameStates, selectedLocation, onGameClick, onToggleGameDisabledClick, onRemoveGameClick, onGameDetailsClick }) {
   return (
     <Container fluid='md'>
       <Row>
@@ -259,6 +328,7 @@ function GameList({gameStates, selectedLocation, onGameClick, onToggleGameDisabl
               onButtonClick={() => onGameClick(index)}
               onToggleGameDisabledClick={() => onToggleGameDisabledClick(selectedLocation, game)}
               onRemoveGameClick={() => onRemoveGameClick(selectedLocation, game)}
+              onGameDetailsClick={() => onGameDetailsClick(selectedLocation, game)}
             />
           ))}
         </Col>
@@ -272,10 +342,12 @@ function Raffler() {
   const [selectedLocation, setSelectedLocation] = React.useState(null);
   const [reservedGame, setReservedGame] = React.useState(null);
   const [gameStates, setGameStates] = React.useState([]);
+  const [gameDetails, setGameDetails] = React.useState(null);
 
   // Modals
   const [modalAddLocationShow, setModalAddLocationShow] = React.useState(false);
   const [modalAddGameShow, setModalAddGameShow] = React.useState(false);
+  const [modalGameDetailsShow, setModalGameDetailsShow] = React.useState(false);
 
   React.useEffect(() => {
     const getLocations = async () => {
@@ -339,6 +411,11 @@ function Raffler() {
     setModalAddGameShow(true);
   }
 
+  async function onGameDetailsClick(location, game) {
+    setGameDetails(await API.games.get(location.id, game.id));
+    setModalGameDetailsShow(true);
+  }
+
   async function onRemoveGameClick(location, game) {
     if (!window.confirm("Are you sure?")) {
       return;
@@ -353,8 +430,8 @@ function Raffler() {
   }
 
   async function onToggleGameDisabledClick(location, game) {
-    const isDisabled = game.disabled_at;
-    const isReserved = game.reserved_at;
+    const isDisabled = Boolean(game.disabled_at);
+    const isReserved = Boolean(game.reserved_at);
 
     if (isDisabled) {
       await API.games.enable(location.id, game.id);
@@ -401,6 +478,7 @@ function Raffler() {
             onGameClick={onGameClick}
             onToggleGameDisabledClick={onToggleGameDisabledClick}
             onRemoveGameClick={onRemoveGameClick}
+            onGameDetailsClick={onGameDetailsClick}
           />
         </div>
       </div>
@@ -416,6 +494,13 @@ function Raffler() {
         selectedLocation={selectedLocation}
         setModalAddGameShow={setModalAddGameShow}
         setGameStates={setGameStates}
+      />
+      <GameDetailsModal
+        gameDetails={gameDetails}
+        modalGameDetailsShow={modalGameDetailsShow}
+        setGameDetails={setGameDetails}
+        setModalGameDetailsShow={setModalGameDetailsShow}
+        selectedLocation={selectedLocation}
       />
     </div>
   );
