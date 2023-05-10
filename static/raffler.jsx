@@ -48,10 +48,14 @@ function GameDetailsModal({
 
   const onAddNote = async () => {
     if (value.trim() !== '') {
-      await API.notes.add(selectedLocation.id, gameDetails.id, value);
+      const addedNote = await API.notes.add(selectedLocation.id, gameDetails.id, value);
+
       setGameDetails((prevDetails) => {
         const updatedDetails = { ...prevDetails };
-        updatedDetails.notes.push(value);
+        if (!updatedDetails.notes) {
+          updatedDetails.notes = []; // Initialize notes array if it's empty
+        }
+        updatedDetails.notes.push(addedNote);
         return updatedDetails;
       });
     }
@@ -80,7 +84,7 @@ function GameDetailsModal({
         <Modal.Title>{gameDetails?.name || ''} ({gameDetails?.abbreviation || ''})</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        <Notes notes={gameDetails?.notes || []} />
+        {gameDetails?.notes && gameDetails.notes.length > 0 && <Notes notes={gameDetails.notes} />}
         <Form onSubmit={onSubmit}>
           <Form.Group className="mb-3" controlId="formAddNote">
             <div className="d-flex">
@@ -98,6 +102,7 @@ function GameDetailsModal({
     </Modal>
   );
 }
+
 function AddLocationModal({
   modalAddLocationShow,
   setModalAddLocationShow,
