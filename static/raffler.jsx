@@ -17,9 +17,6 @@ const OverlayTrigger = ReactBootstrap.OverlayTrigger;
 const Row = ReactBootstrap.Row;
 const Tooltip = ReactBootstrap.Tooltip;
 
-
-const API_URL = 'http://localhost:8000';
-
 const Event = {
   Disable: 'disable',
   Update: 'update',
