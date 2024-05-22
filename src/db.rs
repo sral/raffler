@@ -11,7 +11,7 @@ type Result<T> = std::result::Result<T, Box<dyn error::Error>>;
 pub struct Location {
     pub id: i64,
     pub name: String,
-    deleted_at: Option<NaiveDateTime>,
+    deleted_at: Option<NaiveDateTime>, // TODO: Don't expose this in responses?
     created_at: NaiveDateTime,
 }
 
@@ -101,153 +101,144 @@ impl Location {
     }
 }
 
-// // Bah! This needs to be fixed. Can we pass around a transaction and compose functions
-// // in API layer and not do this shit?
-// #[derive(Debug, Serialize)]
-// #[serde(crate = "rocket::serde")]
-// pub struct GameWithNotes {
-//     pub id: i64,
-//     location_id: i64,
-//     pub name: String,
-//     pub abbreviation: String,
-//     pub disabled_at: Option<NaiveDateTime>,
-//     pub reserved_at: Option<NaiveDateTime>,
-//     pub deleted_at: Option<NaiveDateTime>,
-//     created_at: NaiveDateTime,
-//     pub notes: Vec<Note>,
-//     pub reserved_minutes: i32,
-// }
+#[derive(Debug, Serialize)]
+pub struct GameWithNotes {
+    pub id: i64,
+    location_id: i64,
+    pub name: String,
+    pub abbreviation: String,
+    pub disabled_at: Option<NaiveDateTime>,
+    pub reserved_at: Option<NaiveDateTime>,
+    pub deleted_at: Option<NaiveDateTime>, // TODO: Don't expose this in responses?
+    created_at: NaiveDateTime,
+    pub notes: Vec<Note>,
+    pub reserved_minutes: i32,
+}
 
-// impl GameWithNotes {
-//     pub fn build(game: Game, notes: Vec<Note>) -> GameWithNotes {
-//         GameWithNotes {
-//             id: game.id,
-//             location_id: game.location_id,
-//             name: game.name,
-//             abbreviation: game.abbreviation,
-//             disabled_at: game.disabled_at,
-//             reserved_at: game.reserved_at,
-//             deleted_at: game.deleted_at,
-//             created_at: game.created_at,
-//             notes: notes,
-//             reserved_minutes: game.reserved_minutes,
-//         }
-//     }
-// }
+impl GameWithNotes {
+    pub fn build(game: Game, notes: Vec<Note>) -> GameWithNotes {
+        GameWithNotes {
+            id: game.id,
+            location_id: game.location_id,
+            name: game.name,
+            abbreviation: game.abbreviation,
+            disabled_at: game.disabled_at,
+            reserved_at: game.reserved_at,
+            deleted_at: game.deleted_at, // TODO: Don't expose this in responses?
+            created_at: game.created_at,
+            notes: notes,
+            reserved_minutes: game.reserved_minutes,
+        }
+    }
+}
 
-// #[derive(Debug, Serialize)]
-// #[serde(crate = "rocket::serde")]
-// pub struct Game {
-//     pub id: i64,
-//     location_id: i64,
-//     pub name: String,
-//     pub abbreviation: String,
-//     pub disabled_at: Option<NaiveDateTime>,
-//     pub reserved_at: Option<NaiveDateTime>,
-//     pub deleted_at: Option<NaiveDateTime>,
-//     created_at: NaiveDateTime,
-//     pub reserved_minutes: i32,
-// }
+#[derive(Debug, Serialize)]
+pub struct Game {
+    pub id: i64,
+    location_id: i64,
+    pub name: String,
+    pub abbreviation: String,
+    pub disabled_at: Option<NaiveDateTime>,
+    pub reserved_at: Option<NaiveDateTime>,
+    pub deleted_at: Option<NaiveDateTime>, // TODO: Don't expose this in responses?
+    created_at: NaiveDateTime,
+    pub reserved_minutes: i32,
+}
 
-// impl Game {
-//     pub async fn find_by_id(
-//         mut db: Connection<Db>,
-//         id: i64,
-//         location_id: i64,
-//     ) -> Result<GameWithNotes> {
-//         let mut tx = db.begin().await?;
-//         let game = sqlx::query_as!(
-//             Game,
-//             r#"SELECT *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!"
-//                  FROM game
-//                 WHERE deleted_at IS NULL
-//                   AND id = $1
-//                   AND location_id = $2"#,
-//             id,
-//             location_id
-//         )
-//         .fetch_one(&mut *tx)
-//         .await?;
+impl Game {
+    pub async fn find_by_id(pool: &PgPool, id: i64, location_id: i64) -> Result<GameWithNotes> {
+        let mut tx = pool.begin().await?;
+        let game = sqlx::query_as!(
+            Game,
+            r#"SELECT *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!"
+                 FROM game
+                WHERE deleted_at IS NULL
+                  AND id = $1
+                  AND location_id = $2"#,
+            id,
+            location_id
+        )
+        .fetch_one(&mut *tx)
+        .await?;
 
-//         let notes = sqlx::query_as!(
-//             Note,
-//             r#"SELECT *
-//                  FROM note
-//                 WHERE deleted_at IS NULL
-//                   AND game_id = $1
-//                 ORDER BY created_at ASC"#,
-//             game.id
-//         )
-//         .fetch(&mut *tx)
-//         .try_collect::<Vec<_>>()
-//         .await?;
+        let notes = sqlx::query_as!(
+            Note,
+            r#"SELECT *
+                 FROM note
+                WHERE deleted_at IS NULL
+                  AND game_id = $1
+                ORDER BY created_at ASC"#,
+            game.id
+        )
+        .fetch(&mut *tx)
+        .try_collect::<Vec<_>>()
+        .await?;
 
-//         tx.commit().await?;
-//         Ok(GameWithNotes::build(game, notes))
-//     }
+        // tx.commit().await?;
+        Ok(GameWithNotes::build(game, notes))
+    }
 
-//     pub async fn find_by_location_id(
-//         mut db: Connection<Db>,
-//         id: i64,
-//     ) -> Result<Vec<GameWithNotes>> {
-//         let mut tx = db.begin().await?;
-//         let games = sqlx::query_as!(
-//             Game,
-//             r#"SELECT game.*, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!"
-//                  FROM game
-//                  JOIN location
-//                    ON location.id = game.location_id
-//                 WHERE game.deleted_at IS NULL
-//                   AND location.deleted_at IS NULL
-//                   AND location_id = $1
-//              ORDER BY abbreviation, id ASC"#,
-//             id
-//         )
-//         .fetch(&mut tx)
-//         .try_collect::<Vec<_>>()
-//         .await?;
+    pub async fn find_by_location_id(pool: &PgPool, id: i64) -> Result<Vec<GameWithNotes>> {
+        let mut tx = pool.begin().await?;
 
-//         let mut games_with_notes = Vec::new();
-//         for g in games {
-//             let notes = sqlx::query_as!(
-//                 Note,
-//                 r#"SELECT *
-//                      FROM note
-//                     WHERE deleted_at IS NULL
-//                       AND game_id = $1
-//                  ORDER BY created_at ASC"#,
-//                 g.id
-//             )
-//             .fetch(&mut *tx)
-//             .try_collect::<Vec<_>>()
-//             .await?;
-//             games_with_notes.push(GameWithNotes::build(g, notes));
-//         }
+        let games = sqlx::query_as!(
+            Game,
+            r#"SELECT game.*, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!"
+                 FROM game
+                 JOIN location
+                   ON location.id = game.location_id
+                WHERE game.deleted_at IS NULL
+                  AND location.deleted_at IS NULL
+                  AND location_id = $1
+             ORDER BY abbreviation, id ASC"#,
+            id
+        )
+        .fetch(&mut *tx)
+        .try_collect::<Vec<_>>()
+        .await?;
 
-//         tx.commit().await?;
-//         Ok(games_with_notes)
-//     }
+        let mut games_with_notes = Vec::new();
+        for g in games {
+            let notes = sqlx::query_as!(
+                Note,
+                r#"SELECT *
+                     FROM note
+                    WHERE deleted_at IS NULL
+                      AND game_id = $1
+                 ORDER BY created_at ASC"#,
+                g.id
+            )
+            .fetch(&mut *tx)
+            .try_collect::<Vec<_>>()
+            .await?;
+            games_with_notes.push(GameWithNotes::build(g, notes));
+        }
 
-//     pub async fn add(
-//         mut db: Connection<Db>,
-//         location_id: i64,
-//         name: String,
-//         abbreviation: String,
-//     ) -> Result<Game> {
-//         let game = sqlx::query_as!(
-//             Game,
-//             r#"INSERT INTO game (location_id, name, abbreviation)
-//                     VALUES ($1, $2, $3)
-//                  RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
-//             location_id,
-//             name,
-//             abbreviation
-//         )
-//         .fetch_one(&mut *db)
-//         .await?;
+        //tx.commit().await?;
+        Ok(games_with_notes)
+    }
 
-//         Ok(game)
-//     }
+    pub async fn add(
+        pool: &PgPool,
+        location_id: i64,
+        name: String,
+        abbreviation: String,
+    ) -> Result<Game> {
+        let game = sqlx::query_as!(
+                Game,
+                r#"INSERT INTO game (location_id, name, abbreviation)
+                        VALUES ($1, $2, $3)
+                    RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
+                location_id,
+                name,
+                abbreviation
+            )
+            .fetch_one(pool)
+            .await?;
+
+        Ok(game)
+    }
+}
 
 //     pub async fn update_by_id(
 //         mut db: Connection<Db>,
@@ -417,17 +408,16 @@ impl Location {
 //     }
 // }
 
-// #[derive(Debug, Serialize)]
-// #[serde(crate = "rocket::serde")]
-// pub struct Note {
-//     pub id: i64,
-//     game_id: i64,
-//     // Nullable for now, fix once we add players to the mix.
-//     player_id: Option<i64>,
-//     pub note: String,
-//     deleted_at: Option<NaiveDateTime>,
-//     created_at: NaiveDateTime,
-// }
+#[derive(Debug, Serialize)]
+pub struct Note {
+    pub id: i64,
+    game_id: i64,
+    // Nullable for now, fix once we add players to the mix.
+    player_id: Option<i64>,
+    pub note: String,
+    deleted_at: Option<NaiveDateTime>, // TODO: Don't expose this in responses?
+    created_at: NaiveDateTime,
+}
 
 // impl Note {
 //     pub async fn add_by_game_id(mut db: Connection<Db>, id: i64, note: String) -> Result<Note> {

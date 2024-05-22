@@ -37,7 +37,17 @@ async fn main() {
         )
         .route(
             "/v1/locations/:id",
-            get(api::get_location_by_id).delete(api::delete_location_by_id),
+            get(api::get_location_by_id)
+                .delete(api::delete_location_by_id)
+                .post(api::post_add_game_at_location),
+        )
+        .route(
+            "/v1/locations/:location_id/games",
+            get(api::get_games_by_location_id),
+        )
+        .route(
+            "/v1/locations/:location_id/games/:game_id",
+            get(api::get_game_at_location_by_id),
         )
         .with_state(pool);
 
