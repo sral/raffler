@@ -1,7 +1,7 @@
 mod api;
 mod db;
 
-use axum::{routing::get, Router};
+use axum::{routing::delete, routing::get, routing::post, Router};
 use sqlx::postgres::PgPoolOptions;
 use tokio::net::TcpListener;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -37,17 +37,42 @@ async fn main() {
         )
         .route(
             "/v1/locations/:id",
-            get(api::get_location_by_id)
-                .delete(api::delete_location_by_id)
-                .post(api::post_add_game_at_location),
+            get(api::get_location_by_id).delete(api::delete_location_by_id),
         )
         .route(
             "/v1/locations/:location_id/games",
-            get(api::get_games_by_location_id),
+            get(api::get_games_by_location_id).post(api::post_add_game_at_location),
         )
         .route(
             "/v1/locations/:location_id/games/:game_id",
-            get(api::get_game_at_location_by_id),
+            get(api::get_game_at_location_by_id)
+                .put(api::put_update_game_at_location)
+                .delete(api::delete_game_at_location_by_id),
+        )
+        .route(
+            "/v1/locations/:location_id/games/:game_id/disable",
+            post(api::post_disable_game_at_location_by_id),
+        )
+        .route(
+            "/v1/locations/:location_id/games/reservations",
+            post(api::post_reserve_random_game_at_location),
+        )
+        .route(
+            "/v1/locations/:location_id/games/:game_id/reservations",
+            post(api::post_reserve_game_at_location_by_id)
+                .delete(api::delete_game_reservation_at_location_by_id),
+        )
+        .route(
+            "/v1/locations/:location_id/games/:game_id/enable",
+            post(api::post_enable_game_at_location_by_id),
+        )
+        .route(
+            "/v1/locations/:location_id/games/:game_id/notes",
+            post(api::post_add_note_for_game_at_location),
+        )
+        .route(
+            "/v1/locations/:location_id/games/:game_id/notes/:note_id",
+            delete(api::delete_note_for_game_by_id),
         )
         .with_state(pool);
 

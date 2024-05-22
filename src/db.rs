@@ -238,175 +238,171 @@ impl Game {
 
         Ok(game)
     }
+
+    pub async fn update_by_id(
+        pool: &PgPool,
+        location_id: i64,
+        id: i64,
+        name: String,
+        abbreviation: String,
+    ) -> Result<Game> {
+        let game = sqlx::query_as!(
+            Game,
+            r#"UPDATE game
+                  SET name = $1,
+                      abbreviation = $2
+                WHERE id = $3
+                  AND location_id = $4
+            RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
+            name,
+            abbreviation,
+            id,
+            location_id,
+        )
+        .fetch_one(pool)
+        .await?;
+
+        Ok(game)
+    }
+
+    pub async fn disable_by_id(pool: &PgPool, location_id: i64, id: i64) -> Result<Game> {
+        let game = sqlx::query_as!(
+            Game,
+            r#"UPDATE game
+                    SET disabled_at = now()
+                WHERE id = $1
+                    AND location_id = $2
+            RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
+            id,
+            location_id,
+        )
+        .fetch_one(pool)
+        .await?;
+
+        Ok(game)
+    }
+
+    pub async fn enable_by_id(pool: &PgPool, location_id: i64, id: i64) -> Result<Game> {
+        let game = sqlx::query_as!(
+            Game,
+            r#"UPDATE game
+                    SET disabled_at = NULL
+                WHERE id = $1
+                    AND location_id = $2
+            RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
+            id,
+            location_id,
+        )
+        .fetch_one(pool)
+        .await?;
+
+        Ok(game)
+    }
+
+    pub async fn delete_by_id(pool: &PgPool, location_id: i64, id: i64) -> Result<Game> {
+        let mut tx = pool.begin().await?;
+
+        let game = sqlx::query_as!(
+            Game,
+            r#"UPDATE game
+                    SET deleted_at = now()
+                WHERE id = $1
+                    AND location_id = $2
+            RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
+            id,
+            location_id,
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+
+        let _result = sqlx::query!(
+            r#"UPDATE note
+                    SET deleted_at = now()
+                WHERE game_id = $1
+                    AND deleted_at = NULL"#,
+            id,
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+        Ok(game)
+    }
+
+    pub async fn reserve_by_id(pool: &PgPool, location_id: i64, id: i64) -> Result<Game> {
+        let game = sqlx::query_as!(
+            Game,
+            r#"UPDATE game
+                    SET reserved_at = now()
+                WHERE id = $1
+                    AND location_id = $2
+                    AND reserved_at IS NULL
+            RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
+            id,
+            location_id,
+        )
+        .fetch_one(pool)
+        .await?;
+
+        Ok(game)
+    }
+
+    pub async fn reserve_random_by_location_id(pool: &PgPool, location_id: i64) -> Result<Game> {
+        let mut tx = pool.begin().await?;
+
+        let game = sqlx::query_as!(
+            Game,
+            r#"SELECT *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!"
+                    FROM game
+                WHERE deleted_at IS NULL
+                    AND disabled_at IS NULL
+                    AND reserved_at IS NULL
+                    AND location_id = $1
+                ORDER BY random() FOR UPDATE
+                LIMIT 1"#,
+                location_id
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+
+        let game = sqlx::query_as!(
+            Game,
+            r#"UPDATE game
+                    SET reserved_at = now()
+                WHERE id = $1
+                    AND location_id = $2
+            RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
+            game.id,
+            location_id,
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+        Ok(game)
+    }
+
+    pub async fn release_reservation_by_id(
+        pool: &PgPool,
+        location_id: i64,
+        id: i64,
+    ) -> Result<Game> {
+        let game = sqlx::query_as!(
+            Game,
+            r#"UPDATE game
+                    SET reserved_at = NULL
+                WHERE id = $1
+                    AND location_id = $2
+            RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
+            id,
+            location_id,
+        )
+        .fetch_one(pool)
+        .await?;
+
+        Ok(game)
+    }
 }
-
-//     pub async fn update_by_id(
-//         mut db: Connection<Db>,
-//         id: i64,
-//         location_id: i64,
-//         name: String,
-//         abbreviation: String,
-//     ) -> Result<Game> {
-//         let game = sqlx::query_as!(
-//             Game,
-//             r#"UPDATE game
-//                   SET name = $1,
-//                       abbreviation = $2
-//                 WHERE id = $3
-//                   AND location_id = $4
-//             RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
-//             name,
-//             abbreviation,
-//             id,
-//             location_id,
-//         )
-//         .fetch_one(&mut *db)
-//         .await?;
-
-//         Ok(game)
-//     }
-
-//     pub async fn disable_by_id(mut db: Connection<Db>, id: i64, location_id: i64) -> Result<Game> {
-//         let game = sqlx::query_as!(
-//             Game,
-//             r#"UPDATE game
-//                   SET disabled_at = now()
-//                 WHERE id = $1
-//                   AND location_id = $2
-//             RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
-//             id,
-//             location_id,
-//         )
-//         .fetch_one(&mut *db)
-//         .await?;
-
-//         Ok(game)
-//     }
-
-//     pub async fn enable_by_id(mut db: Connection<Db>, id: i64, location_id: i64) -> Result<Game> {
-//         let game = sqlx::query_as!(
-//             Game,
-//             r#"UPDATE game
-//                   SET disabled_at = NULL
-//                 WHERE id = $1
-//                   AND location_id = $2
-//             RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
-//             id,
-//             location_id,
-//         )
-//         .fetch_one(&mut *db)
-//         .await?;
-
-//         Ok(game)
-//     }
-
-//     pub async fn delete_by_id(mut db: Connection<Db>, id: i64, location_id: i64) -> Result<Game> {
-//         let mut tx = db.begin().await?;
-
-//         let game = sqlx::query_as!(
-//             Game,
-//             r#"UPDATE game
-//                   SET deleted_at = now()
-//                 WHERE id = $1
-//                   AND location_id = $2
-//             RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
-//             id,
-//             location_id,
-//         )
-//         .fetch_one(&mut *tx)
-//         .await?;
-
-//         let _result = sqlx::query!(
-//             r#"UPDATE note
-//                   SET deleted_at = now()
-//                 WHERE game_id = $1
-//                   AND deleted_at = NULL"#,
-//             id,
-//         )
-//         .execute(&mut *tx)
-//         .await?;
-
-//         tx.commit().await?;
-//         Ok(game)
-//     }
-
-//     pub async fn reserve_by_id(mut db: Connection<Db>, id: i64, location_id: i64) -> Result<Game> {
-//         let game = sqlx::query_as!(
-//             Game,
-//             r#"UPDATE game
-//                   SET reserved_at = now()
-//                 WHERE id = $1
-//                   AND location_id = $2
-//                   AND reserved_at IS NULL
-//             RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
-//             id,
-//             location_id,
-//         )
-//         .fetch_one(&mut *db)
-//         .await?;
-
-//         Ok(game)
-//     }
-
-//     pub async fn reserve_random_by_location_id(
-//         mut db: Connection<Db>,
-//         location_id: i64,
-//     ) -> Result<Game> {
-//         let mut tx = db.begin().await?;
-
-//         let game = sqlx::query_as!(
-//             Game,
-//             r#"SELECT *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!"
-//                  FROM game
-//                 WHERE deleted_at IS NULL
-//                   AND disabled_at IS NULL
-//                   AND reserved_at IS NULL
-//                   AND location_id = $1
-//              ORDER BY random() FOR UPDATE
-//                 LIMIT 1"#,
-//              location_id
-//         )
-//         .fetch_one(&mut tx)
-//         .await?;
-
-//         let game = sqlx::query_as!(
-//             Game,
-//             r#"UPDATE game
-//                   SET reserved_at = now()
-//                 WHERE id = $1
-//                   AND location_id = $2
-//             RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
-//             game.id,
-//             location_id,
-//         )
-//         .fetch_one(&mut tx)
-//         .await?;
-
-//         tx.commit().await?;
-//         Ok(game)
-//     }
-
-//     pub async fn release_reservation_by_id(
-//         mut db: Connection<Db>,
-//         id: i64,
-//         location_id: i64,
-//     ) -> Result<Game> {
-//         let game = sqlx::query_as!(
-//             Game,
-//             r#"UPDATE game
-//                   SET reserved_at = NULL
-//                 WHERE id = $1
-//                   AND location_id = $2
-//             RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
-//             id,
-//             location_id,
-//         )
-//         .fetch_one(&mut *db)
-//         .await?;
-
-//         Ok(game)
-//     }
-// }
 
 #[derive(Debug, Serialize)]
 pub struct Note {
@@ -419,57 +415,56 @@ pub struct Note {
     created_at: NaiveDateTime,
 }
 
-// impl Note {
-//     pub async fn add_by_game_id(mut db: Connection<Db>, id: i64, note: String) -> Result<Note> {
-//         // TODO: PlayerId needs to come from authorization/sessions.
-//         let note = sqlx::query_as!(
-//             Note,
-//             r#"INSERT INTO note (note, game_id)
-//                     VALUES ($1, $2)
-//                  RETURNING *"#,
-//             note,
-//             id,
-//         )
-//         .fetch_one(&mut *db)
-//         .await?;
+impl Note {
+    pub async fn add_by_game_id(pool: &PgPool, note: String, game_id: i64) -> Result<Note> {
+        let note = sqlx::query_as!(
+            Note,
+            r#"INSERT INTO note (note, game_id)
+                    VALUES ($1, $2)
+                 RETURNING *"#,
+            note,
+            game_id,
+        )
+        .fetch_one(pool)
+        .await?;
 
-//         Ok(note)
-//     }
+        Ok(note)
+    }
 
-//     pub async fn delete_by_id(mut db: Connection<Db>, id: i64) -> Result<Note> {
-//         let note = sqlx::query_as!(
-//             Note,
-//             r#"UPDATE note
-//                   SET deleted_at = now()
-//                 WHERE id = $1
-//                   AND deleted_at IS NULL
-//             RETURNING *"#,
-//             id
-//         )
-//         .fetch_one(&mut *db)
-//         .await?;
+    pub async fn delete_by_id(pool: &PgPool, id: i64) -> Result<Note> {
+        let note = sqlx::query_as!(
+            Note,
+            r#"UPDATE note
+                    SET deleted_at = now()
+                WHERE id = $1
+                    AND deleted_at IS NULL
+            RETURNING *"#,
+            id
+        )
+        .fetch_one(pool)
+        .await?;
 
-//         Ok(note)
-//     }
-// }
+        Ok(note)
+    }
 
-// async fn run_migrations(rocket: Rocket<Build>) -> fairing::Result {
-//     match Db::fetch(&rocket) {
-//         Some(db) => match sqlx::migrate!("./migrations").run(&**db).await {
-//             Ok(_) => Ok(rocket),
-//             Err(e) => {
-//                 error!("Failed to initialize SQLx database: {}", e);
-//                 Err(rocket)
-//             }
-//         },
-//         None => Err(rocket),
-//     }
-// }
+    // async fn run_migrations(rocket: Rocket<Build>) -> fairing::Result {
+    //     match Db::fetch(&rocket) {
+    //         Some(db) => match sqlx::migrate!("./migrations").run(&**db).await {
+    //             Ok(_) => Ok(rocket),
+    //             Err(e) => {
+    //                 error!("Failed to initialize SQLx database: {}", e);
+    //                 Err(rocket)
+    //             }
+    //         },
+    //         None => Err(rocket),
+    //     }
+    // }
 
-// pub fn stage() -> AdHoc {
-//     AdHoc::on_ignite("SQLx Stage", |rocket| async {
-//         rocket
-//             .attach(Db::init())
-//             .attach(AdHoc::try_on_ignite("SQLx migrations", run_migrations))
-//     })
-// }
+    // pub fn stage() -> AdHoc {
+    //     AdHoc::on_ignite("SQLx Stage", |rocket| async {
+    //         rocket
+    //             .attach(Db::init())
+    //             .attach(AdHoc::try_on_ignite("SQLx migrations", run_migrations))
+    //     })
+    // }
+}
