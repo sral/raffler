@@ -2,17 +2,16 @@
 name = "raffler"
 version = "0.0.1"
 edition = "2021"
+publish = false
 
 [dependencies]
-rocket = {version = "0.5.0-rc.1", features = ["json"]}
-rocket_db_pools = {version = "0.1.0-rc", features = ["sqlx_postgres"]}
-chrono = { version = "0.4", features = ["serde"]}
+axum = "0.7.5"
+futures-util = "0.3"
+tokio = { version = "1.0", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
-[dependencies.sqlx]
-version = "0.6"
-default-features = false
-features = ["chrono", "macros", "offline", "migrate", "runtime-tokio-rustls"]
-
-[patch.crates-io]
-rocket = { git = "https://github.com/SergioBenitez/Rocket"}
-rocket_db_pools= {  git = "https://github.com/SergioBenitez/Rocket"}
+serde = "1.0.202"
+serde_json = "1.0.117"
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "any", "chrono", "postgres"] }
+chrono = { version="0.4.38", features = ["serde"]}
