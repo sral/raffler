@@ -19,7 +19,7 @@ async fn main() {
         .init();
 
     let db_connection_str = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgres://postgres:password@localhost".to_string());
+        .unwrap_or_else(|_| "postgres://localhost/raffler".to_string());
 
     // set up connection pool
     let pool = PgPoolOptions::new()
