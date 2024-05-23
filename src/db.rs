@@ -431,14 +431,16 @@ impl Note {
         Ok(note)
     }
 
-    pub async fn delete_by_id(pool: &PgPool, id: i64) -> Result<Note> {
+    pub async fn delete_by_id(pool: &PgPool, game_id: i64, id: i64) -> Result<Note> {
         let note = sqlx::query_as!(
             Note,
             r#"UPDATE note
-                    SET deleted_at = now()
-                WHERE id = $1
-                    AND deleted_at IS NULL
+                  SET deleted_at = now()
+                WHERE id = $2
+                  AND game_id = $1
+                  AND deleted_at IS NULL
             RETURNING *"#,
+            game_id,
             id
         )
         .fetch_one(pool)
@@ -458,13 +460,5 @@ impl Note {
     //         },
     //         None => Err(rocket),
     //     }
-    // }
-
-    // pub fn stage() -> AdHoc {
-    //     AdHoc::on_ignite("SQLx Stage", |rocket| async {
-    //         rocket
-    //             .attach(Db::init())
-    //             .attach(AdHoc::try_on_ignite("SQLx migrations", run_migrations))
-    //     })
     // }
 }
