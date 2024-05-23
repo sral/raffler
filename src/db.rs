@@ -11,7 +11,7 @@ type Result<T> = std::result::Result<T, Box<dyn error::Error>>;
 pub struct Location {
     pub id: i64,
     pub name: String,
-    deleted_at: Option<NaiveDateTime>, // TODO: Don't expose this in responses?
+    deleted_at: Option<NaiveDateTime>,
     created_at: NaiveDateTime,
 }
 
@@ -109,7 +109,7 @@ pub struct GameWithNotes {
     pub abbreviation: String,
     pub disabled_at: Option<NaiveDateTime>,
     pub reserved_at: Option<NaiveDateTime>,
-    pub deleted_at: Option<NaiveDateTime>, // TODO: Don't expose this in responses?
+    deleted_at: Option<NaiveDateTime>,
     created_at: NaiveDateTime,
     pub notes: Vec<Note>,
     pub reserved_minutes: i32,
@@ -124,7 +124,7 @@ impl GameWithNotes {
             abbreviation: game.abbreviation,
             disabled_at: game.disabled_at,
             reserved_at: game.reserved_at,
-            deleted_at: game.deleted_at, // TODO: Don't expose this in responses?
+            deleted_at: game.deleted_at,
             created_at: game.created_at,
             notes: notes,
             reserved_minutes: game.reserved_minutes,
@@ -140,7 +140,7 @@ pub struct Game {
     pub abbreviation: String,
     pub disabled_at: Option<NaiveDateTime>,
     pub reserved_at: Option<NaiveDateTime>,
-    pub deleted_at: Option<NaiveDateTime>, // TODO: Don't expose this in responses?
+    deleted_at: Option<NaiveDateTime>,
     created_at: NaiveDateTime,
     pub reserved_minutes: i32,
 }
@@ -411,7 +411,7 @@ pub struct Note {
     // Nullable for now, fix once we add players to the mix.
     player_id: Option<i64>,
     pub note: String,
-    deleted_at: Option<NaiveDateTime>, // TODO: Don't expose this in responses?
+    deleted_at: Option<NaiveDateTime>,
     created_at: NaiveDateTime,
 }
 
