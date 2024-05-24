@@ -4,6 +4,9 @@ mod db;
 use axum::{routing::delete, routing::get, routing::post, Router};
 use sqlx::postgres::PgPoolOptions;
 use tokio::net::TcpListener;
+use tower::ServiceBuilder;
+use tower_http::services::ServeDir;
+use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use std::time::Duration;
@@ -13,7 +16,7 @@ async fn main() {
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "raffler=debug".into()),
+                .unwrap_or_else(|_| "raffler=debug,tower_http=debug".into()),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
@@ -31,7 +34,7 @@ async fn main() {
 
     // Run migrations.
     match sqlx::migrate!().run(&pool).await {
-        Ok(_) => tracing::debug!("Migrations applied"),
+        Ok(_) => tracing::info!("Migrations applied"),
         Err(e) => tracing::debug!("Error {e}"),
     }
 
@@ -79,7 +82,9 @@ async fn main() {
             "/v1/locations/:location_id/games/:game_id/notes/:note_id",
             delete(api::delete_note_for_game_by_id),
         )
-        .with_state(pool);
+        .nest_service("/", ServeDir::new("static"))
+        .with_state(pool)
+        .layer(ServiceBuilder::new().layer(TraceLayer::new_for_http()));
 
     let listener = TcpListener::bind("127.0.0.1:8000").await.unwrap();
     tracing::debug!("listening on {}", listener.local_addr().unwrap());
