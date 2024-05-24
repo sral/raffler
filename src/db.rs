@@ -48,8 +48,8 @@ impl Location {
         let location = sqlx::query_as!(
             Location,
             "INSERT INTO location (name)
-                      VALUES ($1)
-                   RETURNING *",
+                  VALUES ($1)
+            RETURNING *",
             name
         )
         .fetch_one(pool)
@@ -228,7 +228,7 @@ impl Game {
                 Game,
                 r#"INSERT INTO game (location_id, name, abbreviation)
                         VALUES ($1, $2, $3)
-                    RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
+                RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
                 location_id,
                 name,
                 abbreviation
@@ -269,9 +269,9 @@ impl Game {
         let game = sqlx::query_as!(
             Game,
             r#"UPDATE game
-                    SET disabled_at = now()
+                  SET disabled_at = now()
                 WHERE id = $1
-                    AND location_id = $2
+                  AND location_id = $2
             RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
             id,
             location_id,
@@ -286,9 +286,9 @@ impl Game {
         let game = sqlx::query_as!(
             Game,
             r#"UPDATE game
-                    SET disabled_at = NULL
+                  SET disabled_at = NULL
                 WHERE id = $1
-                    AND location_id = $2
+                  AND location_id = $2
             RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
             id,
             location_id,
@@ -305,9 +305,9 @@ impl Game {
         let game = sqlx::query_as!(
             Game,
             r#"UPDATE game
-                    SET deleted_at = now()
-                  WHERE id = $1
-                    AND location_id = $2
+                  SET deleted_at = now()
+                WHERE id = $1
+                  AND location_id = $2
             RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
             id,
             location_id,
@@ -317,9 +317,9 @@ impl Game {
 
         let _result = sqlx::query!(
             r#"UPDATE note
-                    SET deleted_at = now()
+                  SET deleted_at = now()
                 WHERE game_id = $1
-                    AND deleted_at = NULL"#,
+                  AND deleted_at = NULL"#,
             id,
         )
         .execute(&mut *tx)
@@ -333,10 +333,10 @@ impl Game {
         let game = sqlx::query_as!(
             Game,
             r#"UPDATE game
-                    SET reserved_at = now()
+                  SET reserved_at = now()
                 WHERE id = $1
-                    AND location_id = $2
-                    AND reserved_at IS NULL
+                  AND location_id = $2
+                  AND reserved_at IS NULL
             RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
             id,
             location_id,
@@ -353,11 +353,11 @@ impl Game {
         let game = sqlx::query_as!(
             Game,
             r#"SELECT *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!"
-                    FROM game
+                 FROM game
                 WHERE deleted_at IS NULL
-                    AND disabled_at IS NULL
-                    AND reserved_at IS NULL
-                    AND location_id = $1
+                  AND disabled_at IS NULL
+                  AND reserved_at IS NULL
+                  AND location_id = $1
                 ORDER BY random() FOR UPDATE
                 LIMIT 1"#,
                 location_id
@@ -368,9 +368,9 @@ impl Game {
         let game = sqlx::query_as!(
             Game,
             r#"UPDATE game
-                    SET reserved_at = now()
+                  SET reserved_at = now()
                 WHERE id = $1
-                    AND location_id = $2
+                  AND location_id = $2
             RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
             game.id,
             location_id,
@@ -390,9 +390,9 @@ impl Game {
         let game = sqlx::query_as!(
             Game,
             r#"UPDATE game
-                    SET reserved_at = NULL
+                  SET reserved_at = NULL
                 WHERE id = $1
-                    AND location_id = $2
+                  AND location_id = $2
             RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
             id,
             location_id,
