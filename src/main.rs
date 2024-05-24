@@ -21,7 +21,7 @@ async fn main() {
     let db_connection_str = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgres://localhost/raffler".to_string());
 
-    // set up connection pool
+    // Set up connection pool
     let pool = PgPoolOptions::new()
         .max_connections(5)
         .acquire_timeout(Duration::from_secs(3))
@@ -29,7 +29,12 @@ async fn main() {
         .await
         .expect("Can't connect to database");
 
-    // build our application with some routes
+    // Run migrations.
+    match sqlx::migrate!().run(&pool).await {
+        Ok(_) => tracing::debug!("Migrations applied"),
+        Err(e) => tracing::debug!("Error {e}"),
+    }
+
     let app = Router::new()
         .route(
             "/v1/locations",
@@ -76,7 +81,6 @@ async fn main() {
         )
         .with_state(pool);
 
-    // run it with hyper
     let listener = TcpListener::bind("127.0.0.1:8000").await.unwrap();
     tracing::debug!("listening on {}", listener.local_addr().unwrap());
     axum::serve(listener, app).await.unwrap();
