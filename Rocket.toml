@@ -1,2 +1,0 @@
-[global.databases]
-sqlx = { url = "postgres://@localhost/raffler"}
