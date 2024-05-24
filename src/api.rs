@@ -1,3 +1,5 @@
+use chrono::prelude::*;
+
 use crate::db;
 
 use axum::{
@@ -62,6 +64,9 @@ pub struct GameWithNotesResponse {
     id: i64,
     name: String,
     abbreviation: String,
+    disabled_at: Option<NaiveDateTime>,
+    reserved_at: Option<NaiveDateTime>,
+    reserved_minutes: i32,
     notes: Vec<NoteResponse>,
 }
 impl GameWithNotesResponse {
@@ -70,6 +75,9 @@ impl GameWithNotesResponse {
             id: game_with_notes.id,
             name: game_with_notes.name,
             abbreviation: game_with_notes.abbreviation,
+            disabled_at: game_with_notes.disabled_at,
+            reserved_at: game_with_notes.reserved_at,
+            reserved_minutes: game_with_notes.reserved_minutes,
             notes: game_with_notes
                 .notes
                 .into_iter()

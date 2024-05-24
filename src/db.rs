@@ -306,7 +306,7 @@ impl Game {
             Game,
             r#"UPDATE game
                     SET deleted_at = now()
-                WHERE id = $1
+                  WHERE id = $1
                     AND location_id = $2
             RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
             id,
