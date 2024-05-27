@@ -33,12 +33,14 @@ pub struct NoteRequest {
 pub struct NoteResponse {
     id: i64,
     note: String,
+    created_at: NaiveDateTime,
 }
 impl NoteResponse {
     fn from(note: db::Note) -> NoteResponse {
         NoteResponse {
             id: note.id,
             note: note.note,
+            created_at: note.created_at,
         }
     }
 }

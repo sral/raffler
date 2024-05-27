@@ -412,7 +412,7 @@ pub struct Note {
     player_id: Option<i64>,
     pub note: String,
     deleted_at: Option<NaiveDateTime>,
-    created_at: NaiveDateTime,
+    pub created_at: NaiveDateTime,
 }
 
 impl Note {
