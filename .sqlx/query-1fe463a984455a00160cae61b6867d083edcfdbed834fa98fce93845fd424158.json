@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE game\n                  SET deleted_at = now()\n                WHERE deleted_at IS NULL\n                  AND location_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1fe463a984455a00160cae61b6867d083edcfdbed834fa98fce93845fd424158"
+}
