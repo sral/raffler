@@ -126,7 +126,7 @@ impl GameWithNotes {
             reserved_at: game.reserved_at,
             deleted_at: game.deleted_at,
             created_at: game.created_at,
-            notes: notes,
+            notes,
             reserved_minutes: game.reserved_minutes,
         }
     }
