@@ -83,7 +83,7 @@ impl GameWithNotesResponse {
             notes: game_with_notes
                 .notes
                 .into_iter()
-                .map(|n| NoteResponse::from(n))
+                .map(NoteResponse::from)
                 .collect(),
         }
     }
@@ -91,7 +91,7 @@ impl GameWithNotesResponse {
     fn from_vec(games_with_notes: Vec<db::GameWithNotes>) -> Vec<GameWithNotesResponse> {
         games_with_notes
             .into_iter()
-            .map(|g| GameWithNotesResponse::from(g))
+            .map(GameWithNotesResponse::from)
             .collect()
     }
 }
@@ -150,7 +150,7 @@ pub async fn post_add_location(
         Ok(location) => Ok(Json(LocationResponse::from(location))),
         Err(e) => {
             tracing::debug!("Error {e}");
-            return Err(StatusCode::BAD_REQUEST);
+            Err(StatusCode::BAD_REQUEST)
         }
     }
 }
@@ -165,7 +165,7 @@ pub async fn delete_location_by_id(
         Ok(location) => Ok(Json(LocationResponse::from(location))),
         Err(e) => {
             tracing::debug!("Error {e}");
-            return Err(StatusCode::BAD_REQUEST);
+            Err(StatusCode::BAD_REQUEST)
         }
     }
 }
@@ -179,7 +179,7 @@ pub async fn get_games_by_location_id(
         Ok(games_with_notes) => Ok(Json(GameWithNotesResponse::from_vec(games_with_notes))),
         Err(e) => {
             tracing::debug!("Error {e}");
-            return Err(StatusCode::NOT_FOUND);
+            Err(StatusCode::NOT_FOUND)
         }
     }
 }
@@ -194,7 +194,7 @@ pub async fn get_game_at_location_by_id(
         Ok(game_with_notes) => Ok(Json(GameWithNotesResponse::from(game_with_notes))),
         Err(e) => {
             tracing::debug!("Error {e}");
-            return Err(StatusCode::NOT_FOUND);
+            Err(StatusCode::NOT_FOUND)
         }
     }
 }
@@ -210,7 +210,7 @@ pub async fn post_add_game_at_location(
         Ok(game) => Ok(Json(GameResponse::from(game))),
         Err(e) => {
             tracing::debug!("Error {e}");
-            return Err(StatusCode::BAD_REQUEST);
+            Err(StatusCode::BAD_REQUEST)
         }
     }
 }
@@ -233,7 +233,7 @@ pub async fn put_update_game_at_location(
         Ok(game) => Ok(Json(GameResponse::from(game))),
         Err(e) => {
             tracing::debug!("Error {e}");
-            return Err(StatusCode::BAD_REQUEST);
+            Err(StatusCode::BAD_REQUEST)
         }
     }
 }
@@ -248,7 +248,7 @@ pub async fn post_reserve_random_game_at_location(
         Ok(game) => Ok(Json(GameResponse::from(game))),
         Err(e) => {
             tracing::debug!("Error {e}");
-            return Err(StatusCode::BAD_REQUEST);
+            Err(StatusCode::BAD_REQUEST)
         }
     }
 }
@@ -263,7 +263,7 @@ pub async fn delete_game_reservation_at_location_by_id(
         Ok(game) => Ok(Json(GameResponse::from(game))),
         Err(e) => {
             tracing::debug!("Error {e}");
-            return Err(StatusCode::BAD_REQUEST);
+            Err(StatusCode::BAD_REQUEST)
         }
     }
 }
@@ -278,7 +278,7 @@ pub async fn post_disable_game_at_location_by_id(
         Ok(game) => Ok(Json(GameResponse::from(game))),
         Err(e) => {
             tracing::debug!("Error {e}");
-            return Err(StatusCode::BAD_REQUEST);
+            Err(StatusCode::BAD_REQUEST)
         }
     }
 }
@@ -293,7 +293,7 @@ pub async fn post_enable_game_at_location_by_id(
         Ok(game) => Ok(Json(GameResponse::from(game))),
         Err(e) => {
             tracing::debug!("Error {e}");
-            return Err(StatusCode::BAD_REQUEST);
+            Err(StatusCode::BAD_REQUEST)
         }
     }
 }
@@ -308,7 +308,7 @@ pub async fn delete_game_at_location_by_id(
         Ok(game) => Ok(Json(GameResponse::from(game))),
         Err(e) => {
             tracing::debug!("Error {e}");
-            return Err(StatusCode::BAD_REQUEST);
+            Err(StatusCode::BAD_REQUEST)
         }
     }
 }
@@ -325,7 +325,7 @@ pub async fn post_add_note_for_game_at_location(
         Ok(note) => Ok(Json(NoteResponse::from(note))),
         Err(e) => {
             tracing::debug!("Error {e}");
-            return Err(StatusCode::BAD_REQUEST);
+            Err(StatusCode::BAD_REQUEST)
         }
     }
 }
@@ -341,7 +341,7 @@ pub async fn delete_note_for_game_by_id(
         Ok(note) => Ok(Json(NoteResponse::from(note))),
         Err(e) => {
             tracing::debug!("Error {e}");
-            return Err(StatusCode::BAD_REQUEST);
+            Err(StatusCode::BAD_REQUEST)
         }
     }
 }
@@ -356,7 +356,7 @@ pub async fn post_reserve_game_at_location_by_id(
         Ok(game) => Ok(Json(GameResponse::from(game))),
         Err(e) => {
             tracing::debug!("Error {e}");
-            return Err(StatusCode::BAD_REQUEST);
+            Err(StatusCode::BAD_REQUEST)
         }
     }
 }
