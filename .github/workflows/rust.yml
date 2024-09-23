@@ -16,6 +16,8 @@ jobs:
         rustup set profile minimal
         rustup toolchain install 1.81
         rustup default 1.81
+    - name: Install Clippy
+      run: rustup component add clippy
 
     - name: Clippy
       continue-on-error: true  # WARNING: only for this example, remove it!
