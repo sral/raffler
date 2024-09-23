@@ -9,7 +9,7 @@ jobs:
     - uses: actions/checkout@v4
     - uses: dtolnay/rust-toolchain@stable
 
-    - name: Clippt
+    - name: Clippy
       continue-on-error: true  # WARNING: only for this example, remove it!
       run: cargo clippy -- -D warnings
     
