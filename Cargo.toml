@@ -11,7 +11,7 @@ tokio = { version = "1.41", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tower = { version = "0.5", features = ["util"] }
-tower-http = { version = "0.6.1", features = ["fs", "trace"] }
+tower-http = { version = "0.6.2", features = ["fs", "trace"] }
 
 serde = "1.0.215"
 serde_json = "1.0.133"
