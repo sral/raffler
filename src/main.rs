@@ -6,6 +6,7 @@ use sqlx::postgres::PgPoolOptions;
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_http::services::ServeDir;
+use tower_http::services::ServeFile;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -38,51 +39,54 @@ async fn main() {
         Err(e) => tracing::debug!("Error {e}"),
     }
 
+    let serve_dir = ServeDir::new("static").not_found_service(ServeFile::new("static/index.html"));
+
     let app = Router::new()
         .route(
             "/v1/locations",
             get(api::get_all_locations).post(api::post_add_location),
         )
         .route(
-            "/v1/locations/:id",
+            "/v1/locations/{id}",
             get(api::get_location_by_id).delete(api::delete_location_by_id),
         )
         .route(
-            "/v1/locations/:location_id/games",
+            "/v1/locations/{location_id}/games",
             get(api::get_games_by_location_id).post(api::post_add_game_at_location),
         )
         .route(
-            "/v1/locations/:location_id/games/:game_id",
+            "/v1/locations/{location_id}/games/{game_id}",
             get(api::get_game_at_location_by_id)
                 .put(api::put_update_game_at_location)
                 .delete(api::delete_game_at_location_by_id),
         )
         .route(
-            "/v1/locations/:location_id/games/:game_id/disable",
+            "/v1/locations/{location_id}/games/{game_id}/disable",
             post(api::post_disable_game_at_location_by_id),
         )
         .route(
-            "/v1/locations/:location_id/games/reservations",
+            "/v1/locations/{location_id}/games/reservations",
             post(api::post_reserve_random_game_at_location),
         )
         .route(
-            "/v1/locations/:location_id/games/:game_id/reservations",
+            "/v1/locations/{location_id}/games/{game_id}/reservations",
             post(api::post_reserve_game_at_location_by_id)
                 .delete(api::delete_game_reservation_at_location_by_id),
         )
         .route(
-            "/v1/locations/:location_id/games/:game_id/enable",
+            "/v1/locations/{location_id}/games/{game_id}/enable",
             post(api::post_enable_game_at_location_by_id),
         )
         .route(
-            "/v1/locations/:location_id/games/:game_id/notes",
+            "/v1/locations/{location_id}/games/{game_id}/notes",
             post(api::post_add_note_for_game_at_location),
         )
         .route(
-            "/v1/locations/:location_id/games/:game_id/notes/:note_id",
+            "/v1/locations/{location_id}/games/{game_id}/notes/{note_id}",
             delete(api::delete_note_for_game_by_id),
         )
-        .nest_service("/", ServeDir::new("static"))
+        .nest_service("/assets", serve_dir.clone())
+        .fallback_service(serve_dir)
         .with_state(pool)
         .layer(ServiceBuilder::new().layer(TraceLayer::new_for_http()));
 
