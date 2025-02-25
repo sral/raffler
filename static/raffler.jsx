@@ -25,10 +25,19 @@ const Event = {
 };
 
 function Notes({ notes }) {
+  const formatDate = (timestamp) => {
+    const [date, time] = timestamp.replace('T', ' ').split(' ');
+    const [hour, minute] = time.split(':');
+    return `${date} ${hour}:${minute}`;
+  };
+
   return (
     <ListGroup variant="flush">
       {notes.map((note) => (
-        <ListGroup.Item key={note.id}>{note.note}</ListGroup.Item>
+        <ListGroup.Item key={note.id} className="note-item">
+          <span className="text-muted">{formatDate(note.created_at)}: </span>
+          {note.note}
+        </ListGroup.Item>
       ))}
     </ListGroup>
   );
@@ -174,7 +183,11 @@ function AddGameModal({ modalAddGameShow, selectedLocation, setModalAddGameShow,
   };
 
   const handleAddGame = async () => {
-    // TODO: Add validation?
+    if (!name.trim() || !abbreviation.trim()) {
+      console.error('Both name and abbreviation are required.');
+      return;
+    }
+
     try {
       await API.games.add(selectedLocation.id, name, abbreviation);
       setGameStates(await API.games.getAll(selectedLocation.id));
@@ -372,7 +385,7 @@ function Raffler() {
 
   async function onRandomizeClick() {
     setReservedGame(await API.games.reserveRandom(selectedLocation.id));
-    // Wasteful! This roundtrip could be avoided and only the
+    // Wasteful! This round-trip could be avoided and only the
     // affected game could be updated. On the plus side this
     // probably helps keep UI slightly more in sync if we have
     // concurrent user fiddling with things.
@@ -396,7 +409,7 @@ function Raffler() {
   }
 
   function onSelectLocationClick(location) {
-    if (selectedLocation && location.id == selectedLocation.id) {
+    if (selectedLocation && location.id === selectedLocation.id) {
       // Don't update if location doesn't change.
       return;
     }
