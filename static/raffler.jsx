@@ -34,7 +34,7 @@ function Notes({ notes }) {
   return (
     <ListGroup variant="flush">
       {notes.map((note) => (
-        <ListGroup.Item key={note.id} style={{ wordBreak: 'break-word' }}>
+        <ListGroup.Item key={note.id} className="note-item">
           <span className="text-muted">{formatDate(note.created_at)}: </span>
           {note.note}
         </ListGroup.Item>
