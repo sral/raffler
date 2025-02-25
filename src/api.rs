@@ -334,7 +334,7 @@ pub async fn delete_note_for_game_by_id(
     State(pool): State<PgPool>,
     Path((_location_id, game_id, note_id)): Path<(i64, i64, i64)>,
 ) -> impl IntoResponse {
-    // TODO API weirdeness: location_id is not verified/used.
+    // TODO API weirdness: location_id is not verified/used.
     let note = db::Note::delete_by_id(&pool, game_id, note_id).await;
 
     match note {

@@ -7,3 +7,13 @@
     height: 50px;
     text-align: center;
 }
+
+.note-item {
+    word-break: break-word;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.notes-container {
+    padding: 0 12px;
+}
