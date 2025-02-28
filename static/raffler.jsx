@@ -32,11 +32,11 @@ function Notes({ notes }) {
   };
 
   return (
-    <ListGroup variant="flush">
+    <ListGroup variant="flush" className="notes-container">
       {notes.map((note) => (
         <ListGroup.Item key={note.id} className="note-item">
-          <span className="text-muted">{formatDate(note.created_at)}: </span>
-          {note.note}
+          <span>{formatDate(note.created_at)}: </span>
+          <span className="text-muted">{note.note}</span>
         </ListGroup.Item>
       ))}
     </ListGroup>
