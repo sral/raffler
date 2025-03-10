@@ -319,7 +319,7 @@ impl Game {
             r#"UPDATE note
                   SET deleted_at = now()
                 WHERE game_id = $1
-                  AND deleted_at = NULL"#,
+                  AND deleted_at IS NULL"#,
             id,
         )
         .execute(&mut *tx)
