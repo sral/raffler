@@ -5,7 +5,7 @@ edition = "2021"
 publish = false
 
 [dependencies]
-axum = "0.8.3"
+axum = "0.8.4"
 futures-util = "0.3"
 tokio = { version = "1.44", features = ["full"] }
 tracing = "0.1"
