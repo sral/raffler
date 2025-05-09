@@ -304,8 +304,16 @@ function GameButton({ game, onButtonClick, onToggleGameDisabledClick, onRemoveGa
   const isDisabled = Boolean(disabled_at);
   const isReserved = Boolean(reserved_at);
 
-  const buttonVariant = isReserved ? 'danger' : (isDisabled ? 'secondary' : 'success');
-  const buttonText = isReserved ? `${abbreviation} (${reserved_minutes}m)` : abbreviation;
+  const getButtonVariant = () => {
+    if (isDisabled) return 'secondary';
+     if (!isReserved) return 'success';
+    // If reserved for more than 30 minutes, show yellow (warning)
+    if (reserved_minutes > 30) return 'warning';
+    // Otherwise show red (danger)
+    return 'danger';
+  };
+
+  const buttonVariant = getButtonVariant();  const buttonText = isReserved ? `${abbreviation} (${reserved_minutes}m)` : abbreviation;
 
   const handleButtonClick = () => {
     if (!isDisabled) {
