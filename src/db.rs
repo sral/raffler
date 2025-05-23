@@ -387,6 +387,33 @@ impl Game {
         location_id: i64,
         id: i64,
     ) -> Result<Game> {
+        let mut tx = pool.begin().await?;
+
+        // First get the current reserved_at value
+        let game = sqlx::query_as!(
+            Game,
+            r#"SELECT *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!"
+                 FROM game
+                WHERE id = $1
+                  AND location_id = $2
+                  AND reserved_at IS NOT NULL"#,
+            id,
+            location_id,
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+
+        // Insert the reservation record
+        let _result = sqlx::query!(
+            r#"INSERT INTO reservation (game_id, reserved_at, released_at)
+                VALUES ($1, $2, now())"#,
+            id,
+            game.reserved_at,
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        // Update the game's reserved_at to NULL
         let game = sqlx::query_as!(
             Game,
             r#"UPDATE game
@@ -397,10 +424,52 @@ impl Game {
             id,
             location_id,
         )
+        .fetch_one(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+        Ok(game)
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct ReservationStats {
+    pub game_id: i64,
+    pub reservation_count: i64,
+    pub reserved_minutes: i64,
+    pub average_reserved_minutes: f64,
+    pub median_reserved_minutes: f64,
+}
+
+impl ReservationStats {
+    pub async fn get_reservations_stats_by_game_id(
+        pool: &PgPool,
+        game_id: i64,
+    ) -> Result<ReservationStats> {
+        let stats = sqlx::query_as!(
+            ReservationStats,
+            r#"
+            WITH reservation_durations AS (
+                SELECT 
+                    game_id,
+                    EXTRACT(EPOCH FROM (released_at - reserved_at)) / 60 as duration_minutes
+                 FROM reservation
+                WHERE game_id = $1
+                  AND released_at IS NOT NULL
+            )
+            SELECT 
+                $1 as "game_id!",
+                COUNT(*) as "reservation_count!",
+                COALESCE(SUM(duration_minutes)::bigint, 0) as "reserved_minutes!",
+                CAST(COALESCE(AVG(duration_minutes), 0) as float8) as "average_reserved_minutes!",
+                CAST(COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY duration_minutes), 0) as float8) as "median_reserved_minutes!"
+            FROM reservation_durations"#,
+            game_id
+        )
         .fetch_one(pool)
         .await?;
 
-        Ok(game)
+        Ok(stats)
     }
 }
 

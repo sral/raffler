@@ -46,6 +46,26 @@ impl NoteResponse {
 }
 
 #[derive(Debug, Serialize)]
+pub struct ReservationStatsResponse {
+    game_id: i64,
+    reservation_count: i64,
+    reserved_minutes: i64,
+    average_reserved_minutes: f64,
+    median_reserved_minutes: f64,
+}
+impl ReservationStatsResponse {
+    fn from(stats: db::ReservationStats) -> ReservationStatsResponse {
+        ReservationStatsResponse {
+            game_id: stats.game_id,
+            reservation_count: stats.reservation_count,
+            reserved_minutes: stats.reserved_minutes,
+            average_reserved_minutes: stats.average_reserved_minutes,
+            median_reserved_minutes: stats.median_reserved_minutes,
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
 pub struct GameResponse {
     id: i64,
     name: String,
@@ -356,6 +376,20 @@ pub async fn post_reserve_game_at_location_by_id(
         Ok(game) => Ok(Json(GameResponse::from(game))),
         Err(e) => {
             tracing::debug!("Error {e}");
+            Err(StatusCode::BAD_REQUEST)
+        }
+    }
+}
+
+pub async fn get_game_reservation_stats(
+    State(pool): State<PgPool>,
+    Path((_location_id, game_id)): Path<(i64, i64)>,
+) -> impl IntoResponse {
+    let stats = db::ReservationStats::get_reservations_stats_by_game_id(&pool, game_id).await;
+    match stats {
+        Ok(stats) => Ok(Json(ReservationStatsResponse::from(stats))),
+        Err(e) => {
+            tracing::debug!("Error getting stats: {e}");
             Err(StatusCode::BAD_REQUEST)
         }
     }
