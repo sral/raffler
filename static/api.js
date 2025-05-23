@@ -96,6 +96,11 @@ export const API = {
       const url = buildUrl(`/locations/${locationId}/games/${gameId}`);
       return request(url, createJsonOptions('PUT', { name, abbreviation }));
     },
+
+    getStats: async (locationId, gameId) => {
+      const url = buildUrl(`/locations/${locationId}/games/${gameId}/reservations`);
+      return request(url, createJsonOptions('GET'));
+    },
   },
   
   locations: {

@@ -16,13 +16,31 @@ const NavDropdown = ReactBootstrap.NavDropdown;
 const OverlayTrigger = ReactBootstrap.OverlayTrigger;
 const Row = ReactBootstrap.Row;
 const Tooltip = ReactBootstrap.Tooltip;
+const Table = ReactBootstrap.Table;
 
 const Event = {
   Disable: 'disable',
   Update: 'update',
   Remove: 'remove',
   Details: 'details',
+  Stats: 'stats',
 };
+
+function formatDuration(minutes) {
+  const days = Math.floor(minutes / (24 * 60));
+  const hours = Math.floor((minutes % (24 * 60)) / 60);
+  const mins = minutes % 60;
+
+  const parts = [];
+  if (days > 0) parts.push(`${days} day${days === 1 ? '' : 's'}`);
+  if (hours > 0) parts.push(`${hours} hour${hours === 1 ? '' : 's'}`);
+  if (mins > 0) parts.push(`${mins} minute${mins === 1 ? '' : 's'}`);
+
+  if (parts.length === 0) return '0 minutes';
+  if (parts.length === 1) return parts[0];
+  if (parts.length === 2) return `${parts[0]} and ${parts[1]}`;
+  return `${parts[0]}, ${parts[1]} and ${parts[2]}`;
+}
 
 function Notes({ notes }) {
   const formatDate = (timestamp) => {
@@ -104,6 +122,53 @@ function GameDetailsModal({
             </div>
           </Form.Group>
         </Form>
+      </Modal.Body>
+    </Modal>
+  );
+}
+
+function GameStatsModal({
+  modalGameStatsShow,
+  setModalGameStatsShow,
+  gameStats,
+}) {
+  if (!gameStats) {
+    return null;
+  }
+
+  return (
+    <Modal show={modalGameStatsShow} onHide={() => setModalGameStatsShow(false)}>
+      <Modal.Header closeButton>
+        <Modal.Title>Game Statistics</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Container>
+          <Row>
+            <Col>
+              <h5>Reservation Statistics</h5>
+              <Table striped bordered hover>
+                <tbody>
+                  <tr>
+                    <td>Total Reservations</td>
+                    <td>{gameStats.reservation_count}</td>
+                  </tr>
+                  <tr>
+                    <td>Total Reserved Time</td>
+                    <td>{formatDuration(gameStats.reserved_minutes)}</td>
+                  </tr>
+                  <tr>
+                    <td>Average Reservation Time</td>
+                    <td>{Math.round(gameStats.average_reserved_minutes)} minutes</td>
+                  </tr>
+                  <tr>
+                    <td>Median Reservation Time</td>
+                    <td>{Math.round(gameStats.median_reserved_minutes)} minutes</td>
+                  </tr>
+                </tbody>
+              </Table>
+            </Col>
+          </Row>
+        </Container>
       </Modal.Body>
     </Modal>
   );
@@ -298,7 +363,7 @@ function RandomizeButton({ onRaffleClick }) {
   );
 }
 
-function GameButton({ game, onButtonClick, onToggleGameDisabledClick, onRemoveGameClick, onGameDetailsClick }) {
+function GameButton({ game, onButtonClick, onToggleGameDisabledClick, onRemoveGameClick, onGameDetailsClick, onGameStatsClick }) {
   const { name, abbreviation, disabled_at, reserved_at, reserved_minutes } = game;
 
   const isDisabled = Boolean(disabled_at);
@@ -333,13 +398,14 @@ function GameButton({ game, onButtonClick, onToggleGameDisabledClick, onRemoveGa
           </Dropdown.Item>
           <Dropdown.Item eventKey={Event.Remove} onClick={onRemoveGameClick}>Remove</Dropdown.Item>
           <Dropdown.Item eventKey={Event.Details} onClick={onGameDetailsClick}>Details</Dropdown.Item>
+          <Dropdown.Item eventKey={Event.Stats} onClick={onGameStatsClick}>Stats</Dropdown.Item>
         </DropdownButton>
       </ButtonGroup>
     </OverlayTrigger>
   );
 }
 
-function GameList({ gameStates, selectedLocation, onGameClick, onToggleGameDisabledClick, onRemoveGameClick, onGameDetailsClick }) {
+function GameList({ gameStates, selectedLocation, onGameClick, onToggleGameDisabledClick, onRemoveGameClick, onGameDetailsClick, onGameStatsClick }) {
   return (
     <Container fluid='md'>
       <Row>
@@ -352,6 +418,7 @@ function GameList({ gameStates, selectedLocation, onGameClick, onToggleGameDisab
               onToggleGameDisabledClick={() => onToggleGameDisabledClick(selectedLocation, game)}
               onRemoveGameClick={() => onRemoveGameClick(selectedLocation, game)}
               onGameDetailsClick={() => onGameDetailsClick(selectedLocation, game)}
+              onGameStatsClick={() => onGameStatsClick(selectedLocation, game)}
             />
           ))}
         </Col>
@@ -366,11 +433,13 @@ function Raffler() {
   const [reservedGame, setReservedGame] = React.useState(null);
   const [gameStates, setGameStates] = React.useState([]);
   const [gameDetails, setGameDetails] = React.useState(null);
+  const [gameStats, setGameStats] = React.useState(null);
 
   // Modals
   const [modalAddLocationShow, setModalAddLocationShow] = React.useState(false);
   const [modalAddGameShow, setModalAddGameShow] = React.useState(false);
   const [modalGameDetailsShow, setModalGameDetailsShow] = React.useState(false);
+  const [modalGameStatsShow, setModalGameStatsShow] = React.useState(false);
 
   React.useEffect(() => {
     const getLocations = async () => {
@@ -471,6 +540,17 @@ function Raffler() {
     setGameStates(await API.games.getAll(selectedLocation.id));
   }
 
+  async function onGameStatsClick(location, game) {
+    try {
+      const stats = await API.games.getStats(location.id, game.id);
+      setGameStats(stats);
+      setModalGameStatsShow(true);
+    } catch (error) {
+      console.error('Error fetching game stats:', error);
+      // Optionally show an error message to the user
+    }
+  }
+
   return (
     <div className="container-fluid">
       <header>
@@ -502,6 +582,7 @@ function Raffler() {
             onToggleGameDisabledClick={onToggleGameDisabledClick}
             onRemoveGameClick={onRemoveGameClick}
             onGameDetailsClick={onGameDetailsClick}
+            onGameStatsClick={onGameStatsClick}
           />
         </div>
       </div>
@@ -524,6 +605,11 @@ function Raffler() {
         setGameDetails={setGameDetails}
         setModalGameDetailsShow={setModalGameDetailsShow}
         selectedLocation={selectedLocation}
+      />
+      <GameStatsModal
+        modalGameStatsShow={modalGameStatsShow}
+        setModalGameStatsShow={setModalGameStatsShow}
+        gameStats={gameStats}
       />
     </div>
   );

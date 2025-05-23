@@ -14,15 +14,22 @@ jobs:
     - name: Install Rust
       run: |
         rustup set profile minimal
-        rustup toolchain install 1.81
-        rustup default 1.81
+        rustup toolchain install 1.87
+        rustup default 1.87
     - name: Install Clippy
       run: rustup component add clippy
+
+    - name: Install rustfmt
+      run: rustup component add rustfmt
+
 
     - name: Clippy
       continue-on-error: true  # WARNING: only for this example, remove it!
       run: cargo clippy -- -D warnings
-    
+
+    - name: Check formatting
+      run: cargo fmt -- --check
+
     - name: Build
       run: cargo build --release --verbose
     
