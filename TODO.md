@@ -5,7 +5,6 @@ Frontend (crude beginning still):
 - Make it possible to refresh the page and only reload game state?
 
 Backend:
-- Persist reservation history (INSERT INTO reservation ...)
 - We err when for example a game is reserved twice (IS NULL WHERE-clauses prevent mutation), maybe just return game state and 200?
 - API needs to be revisited once we build frontend
     - Use HTTP status codes to signal outcomes (ex: Should we return things like 201 Created)
@@ -15,4 +14,3 @@ Backend:
     - For a blatant example see disable/enable
 - There's currently no validation of actions on deleted entities. Ex you can add games at deleted locations
 - We probably want to spawn some thread that does clean-up as in remove reservations older than N
-- Long term: Add players (+ login) for audits, allow logging scores/results, build stats like median reservation time for game X at location L etc  

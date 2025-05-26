@@ -15,19 +15,19 @@ Content-Type: application/json
 [
     {
         "id": 1,
-        "name: "The Cow Pasture",
+        "name": "The Cow Pasture"
     },
     {
         "id": 2,
-        "name: "Choclate Nudge Brownie",
-    },
+        "name": "Choclate Nudge Brownie"
+    }
 ]
 ```
 
 #### List specific location
 
 Example request:
-```GET v1/locations/{location_id} HTTP/1.1```
+```GET v1/locations/{id} HTTP/1.1```
 
 Example response:
 ```
@@ -36,7 +36,7 @@ Content-Type: application/json
 
 {
     "id": 1,
-    "name: "The Cow Pasture",
+    "name": "The Cow Pasture"
 }
 ```
 
@@ -51,26 +51,38 @@ Content-Type: application/json
     "name": "The Church of Slap Saves"
 }
 ```
-Example response
+
+Example response:
 ```
-HTTP/1.1 201 Created
+HTTP/1.1 200 OK
 Content-Type: application/json
 
 {
     "id": 3,
-    "name: "The Church of Slap Saves",
+    "name": "The Church of Slap Saves"
 }
 ```
+
 #### Remove location
+
 Example request:
-```DELETE v1/locations/{location_id} HTTP/1.1```
+```DELETE v1/locations/{id} HTTP/1.1```
 
 Example response:
-```HTTP/1.1 200 OK```
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "id": 1,
+    "name": "The Cow Pasture"
+}
+```
 
 ### Games
 
 Actions related to games.
+
 #### List all games at location
 
 Example request:
@@ -84,36 +96,19 @@ Content-Type: application/json
 [
     {
         "id": 1,
-        "name: "Attack From Mars",
+        "name": "Attack From Mars",
         "abbreviation": "AFM",
-        "reserved": false,
+        "disabled_at": "2023-05-11T12:22:16.522042",
+        "reserved_at": null,
         "reserved_minutes": 0,
-        "disabled_at": "2022-03-11T01:01:00.00000+00:00",
         "notes": [
             {
                 "id": 1,
-                "note": "",
-            },
-            {
-                "id": 2,
-                "note": "",
-            },
+                "note": "Autoplunger is infested with cows",
+                "created_at": "2023-05-04T07:42:51.260146"
+            }
         ]
-    },
-    {
-        "id": 2,
-        "name: "Iron Maiden (Pro)",
-        "abbreviation": "IRMA",
-        "reserved": true,
-        "reserved_minutes": 5,
-        "disabled_at": null,
-        "notes": [
-            {
-                "id": 3,
-                "note": "",
-            },
-        ]
-    },
+    }
 ]
 ```
 
@@ -129,25 +124,24 @@ Content-Type: application/json
 
 {
     "id": 1,
-    "name: "Attack From Mars",
+    "name": "Attack From Mars",
     "abbreviation": "AFM",
-    "reserved": false,
+    "disabled_at": "2023-05-11T12:22:16.522042",
+    "reserved_at": null,
     "reserved_minutes": 0,
-    "disabled_at": null,
     "notes": [
         {
             "id": 1,
-            "note": "",
-        },
-        {
-            "id": 2,
-            "note": "",
-        },
+            "note": "Autoplunger is infested with cows",
+            "created_at": "2023-05-04T07:42:51.260146"
+        }
     ]
 }
 ```
 
 #### Add game at location
+
+Example request:
 ```
 POST v1/locations/{location_id}/games HTTP/1.1
 Content-Type: application/json
@@ -157,9 +151,10 @@ Content-Type: application/json
     "abbreviation": "SS"
 }
 ```
-Example response
+
+Example response:
 ```
-HTTP/1.1 201 Created
+HTTP/1.1 200 OK
 Content-Type: application/json
 
 {
@@ -174,16 +169,18 @@ Content-Type: application/json
 Example request:
 ```
 PUT v1/locations/{location_id}/games/{game_id} HTTP/1.1
+Content-Type: application/json
 
 {
     "name": "Attack From Lars",
-    "abbreviation": "AFL",
+    "abbreviation": "AFL"
 }
 ```
 
 Example response:
 ```
 HTTP/1.1 200 OK
+Content-Type: application/json
 
 {
     "id": 1,
@@ -191,65 +188,62 @@ HTTP/1.1 200 OK
     "abbreviation": "AFL"
 }
 ```
+
 #### Remove game from location
+
 Example request:
-```
-DELETE v1/locations/{location_id}/games/{game_id} HTTP/1.1
-```
+```DELETE v1/locations/{location_id}/games/{game_id} HTTP/1.1```
 
 Example response:
 ```
 HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "id": 1,
+    "name": "Attack From Mars",
+    "abbreviation": "AFM"
+}
 ```
 
 #### Disable game at location
-This marks the game as not being included for random selection, in tournaments, etc.
 
 Example request:
-```
-POST v1/locations/{location_id}/games/{game_id}/disable HTTP/1.1
-```
+```POST v1/locations/{location_id}/games/{game_id}/disable HTTP/1.1```
 
 Example response:
 ```
 HTTP/1.1 200 OK
+Content-Type: application/json
 
 {
-    "id": 3,
-    "name": "Scared Stiff",
-    "abbreviation": "SS"
+    "id": 1,
+    "name": "Attack From Mars",
+    "abbreviation": "AFM"
 }
 ```
 
 #### Enable game at location
-This marks the game as no longer being disabled (see disabled docs for what that means).
 
 Example request:
-```
-POST v1/locations/{location_id}/games/{game_id}/enable HTTP/1.1
-```
+```POST v1/locations/{location_id}/games/{game_id}/enable HTTP/1.1```
 
 Example response:
 ```
 HTTP/1.1 200 OK
+Content-Type: application/json
 
 {
-    "id": 3,
-    "name": "Scared Stiff",
-    "abbreviation": "SS"
+    "id": 1,
+    "name": "Attack From Mars",
+    "abbreviation": "AFM"
 }
 ```
 
-
-#### List reservations for game at location
-If we ever want to construct reservation history in some sort of game overview.
-Might not be implemented/required. Could be baked into game object when fetching specific
-game as well.
+#### Get game reservation stats
 
 Example request:
-```
-POST v1/locations/{location_id}/games/{game_id}/reservations HTTP/1.1
-```
+```GET v1/locations/{location_id}/games/{game_id}/reservations HTTP/1.1```
 
 Example response:
 ```
@@ -258,24 +252,17 @@ Content-Type: application/json
 
 {
     "game_id": 1,
-    "reservations" [
-        {
-            "reserved_at": "2022-03-11T01:01:00.00000+00:00",
-            "released_at": "2022-03-11T01:05:00.00000+00:00",
-        },
-        {
-            "reserved_at": "2022-03-12T01:07:00.00000+00:00",
-            "released_at": "2022-03-12T01:15:00.00000+00:00",
-        },
-    ]
+    "reservation_count": 0,
+    "reserved_minutes": 0,
+    "average_reserved_minutes": 0.0,
+    "median_reserved_minutes": 0.0
 }
 ```
+
 #### Reserve random game at location
 
 Example request:
-```
-POST v1/locations/{location_id}/games/reservations HTTP/1.1
-```
+```POST v1/locations/{location_id}/games/reservations HTTP/1.1```
 
 Example response:
 ```
@@ -284,42 +271,42 @@ Content-Type: application/json
 
 {
     "id": 1,
-    "name: "Attack From Mars",
-    "abbreviation": "AFM",
+    "name": "Attack From Mars",
+    "abbreviation": "AFM"
 }
 ```
+
 #### Reserve game at location
 
 Example request:
-```
-POST v1/locations/{location_id}/games/{game_id}/reservations HTTP/1.1
-```
-
-Example response:
-```
-HTTP/1.1 201 Created
-
-{
-    "id": 1,
-    "name: "Attack From Mars",
-    "abbreviation": "AFM",
-}
-```
-#### Release current game reservation at location
-
-Example request:
-```
-DELETE v1/locations/{location_id}/games/{game_id}/reservations HTTP/1.1
-```
+```POST v1/locations/{location_id}/games/{game_id}/reservations HTTP/1.1```
 
 Example response:
 ```
 HTTP/1.1 200 OK
+Content-Type: application/json
 
 {
     "id": 1,
-    "name: "Attack From Mars",
-    "abbreviation": "AFM",
+    "name": "Attack From Mars",
+    "abbreviation": "AFM"
+}
+```
+
+#### Release current game reservation at location
+
+Example request:
+```DELETE v1/locations/{location_id}/games/{game_id}/reservations HTTP/1.1```
+
+Example response:
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "id": 1,
+    "name": "Attack From Mars",
+    "abbreviation": "AFM"
 }
 ```
 
@@ -327,117 +314,49 @@ HTTP/1.1 200 OK
 
 Actions related to notes. Notes can be used as for example a service log.
 
-#### List notes for game at locations
-TODO: Maybe? Nested in game response. Depends on how we want things to work.
-
 #### Add note for game at location
-```
-POST v1/locations/{location_id}/games/<game_id>/notes HTTP/1.1
-Content-Type: application/json
 
-{
-    "note": "Auto plunger infested with cows"
-}
-```
-Example response
-```
-HTTP/1.1 201 Created
-Content-Type: application/json
-
-{
-    "id": 3,
-    "note": "Auto plunger infested with cows"
-}
-```
-
-#### Delete note for game at location
 Example request:
 ```
-DELETE v1/locations/{location_id}/games/{game_id}/note/<note_id> HTTP/1.1
+POST v1/locations/{location_id}/games/{game_id}/notes HTTP/1.1
+Content-Type: application/json
+
+{
+    "note": "Auto plunger infested with cows"
+}
 ```
 
 Example response:
 ```
 HTTP/1.1 200 OK
-```
-
-### Player managment & authentication
-
-Authentication details TBD. The intent is to only allowed logged in players (or locations) to
-make changes to games, locations, tournaments, etc. Login needs to be optional as in the lottery needs to
-be functional without signing in.
-
-Logging in will setup a session which will be used for authorization. Details TBD.
-
-#### Create player
-Example request:
-```
-POST v1/players HTTP/1.1
 Content-Type: application/json
 
 {
-    "username": "",
-    "password": "",
-    "initials": "",
-    "name": "",
-    "surname": "",
+    "id": 3,
+    "note": "Auto plunger infested with cows",
+    "created_at": "2022-03-11T01:01:00"
 }
 ```
-Example response
+
+#### Delete note for game at location
+
+Example request:
+```DELETE v1/locations/{location_id}/games/{game_id}/notes/{note_id} HTTP/1.1```
+
+Example response:
 ```
 HTTP/1.1 200 OK
 Content-Type: application/json
 
 {
     "id": 1,
-    "username": "",
-    "initials": "",
-    "name": "",
-    "surname": "",
+    "note": "Auto plunger infested with cows",
+    "created_at": "2022-03-11T01:01:00"
 }
 ```
-
-#### Delete player
-
-Example request:
-```DELETE v1/players/{player_id} HTTP/1.1```
-
-Example response:
-```HTTP/1.1 200 OK```
-
-#### Login player
-Example request:
-```
-POST v1/players/login HTTP/1.1
-Content-Type: application/json
-
-{
-    "username": "",
-    "password": "",
-}
-```
-Example response
-```
-HTTP/1.1 200 OK
-Content-Type: application/json
-```
-
-### Logout player
-Example request:
-```
-DELETE v1/players/{player_id}/login HTTP/1.1
-Content-Type: application/json
-
-```
-Example response
-```
-HTTP/1.1 200 OK
-Content-Type: application/json
-```
-
-### Tournaments
-TBD! The intent is to allow creating and running tournaments with automated matchmaking, scorekeeping,
-standings etc. Initially naive match play will be implemented.
 
 ### Error handling
-API errors will be communicated using HTTP status codes.
+
+API errors will be communicated using HTTP status codes:
+- 400 Bad Request: Invalid request parameters or body
+- 404 Not Found: Resource not found
