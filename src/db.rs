@@ -5,7 +5,7 @@ use serde::Serialize;
 use sqlx::PgPool;
 use std::error;
 
-type Result<T> = std::result::Result<T, Box<dyn error::Error>>;
+type Result<T> = std::result::Result<T, Box<dyn error::Error + Send + Sync>>;
 
 #[derive(Debug, Serialize)]
 pub struct Location {
@@ -135,7 +135,7 @@ impl GameWithNotes {
 #[derive(Debug, Serialize)]
 pub struct Game {
     pub id: i64,
-    location_id: i64,
+    pub location_id: i64,
     pub name: String,
     pub abbreviation: String,
     pub disabled_at: Option<NaiveDateTime>,
@@ -429,6 +429,23 @@ impl Game {
 
         tx.commit().await?;
         Ok(game)
+    }
+
+    pub async fn find_reserved_longer_than(pool: &PgPool, minutes: i32) -> Result<Vec<Game>> {
+        let games = sqlx::query_as!(
+            Game,
+            r#"SELECT *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!"
+                 FROM game
+                WHERE reserved_at IS NOT NULL
+                  AND EXTRACT(EPOCH FROM (now() - reserved_at)) / 60 > $1::int
+                ORDER BY reserved_at ASC"#,
+            minutes
+        )
+        .fetch(pool)
+        .try_collect::<Vec<_>>()
+        .await?;
+
+        Ok(games)
     }
 }
 
