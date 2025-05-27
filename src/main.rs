@@ -4,6 +4,7 @@ mod db;
 use axum::{routing::delete, routing::get, routing::post, Router};
 use sqlx::postgres::PgPoolOptions;
 use tokio::net::TcpListener;
+use tokio::time::sleep;
 use tower::ServiceBuilder;
 use tower_http::services::ServeDir;
 use tower_http::services::ServeFile;
@@ -11,6 +12,9 @@ use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use std::time::Duration;
+
+const RESERVATION_TIMEOUT_MINUTES: i32 = 90;
+const CLEANUP_INTERVAL_SECONDS: u64 = 15 * 60;
 
 #[tokio::main]
 async fn main() {
@@ -32,6 +36,44 @@ async fn main() {
         .connect(&db_connection_str)
         .await
         .expect("Can't connect to database");
+
+    // Spawn background task for game reservation cleanup
+    let pool_clone = pool.clone();
+    tokio::spawn(async move {
+        loop {
+            sleep(Duration::from_secs(CLEANUP_INTERVAL_SECONDS)).await;
+
+            // Find and release games that have been reserved for more than 90 minutes
+            match db::Game::find_reserved_longer_than(&pool_clone, RESERVATION_TIMEOUT_MINUTES)
+                .await
+            {
+                Ok(games) => {
+                    for game in games {
+                        match db::Game::release_reservation_by_id(
+                            &pool_clone,
+                            game.location_id,
+                            game.id,
+                        )
+                        .await
+                        {
+                            Ok(_) => tracing::info!(
+                                "Released game {} at location {}",
+                                game.id,
+                                game.location_id
+                            ),
+                            Err(e) => tracing::error!(
+                                "Failed to release game {} at location {}: {}",
+                                game.id,
+                                game.location_id,
+                                e
+                            ),
+                        }
+                    }
+                }
+                Err(e) => tracing::error!("Failed to find games to release: {}", e),
+            }
+        }
+    });
 
     // Run migrations.
     match sqlx::migrate!().run(&pool).await {
