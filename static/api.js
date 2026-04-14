@@ -1,19 +1,39 @@
-const API_URL = 'http://localhost:8000';
-const API_VERSION = 'v1';
-const buildUrl = (path) => `${API_URL}/${API_VERSION}${path}`;
+import { DEFAULT_API_TIMEOUT_MS, STATS_API_TIMEOUT_MS } from './constants.js';
 
-const request = async (url, options) => {
+const API_VERSION = 'v1';
+const buildUrl = (path) => `/${API_VERSION}${path}`;
+
+// Request deduplication cache
+const pendingRequests = new Map();
+
+const request = async (url, options, timeout = DEFAULT_API_TIMEOUT_MS) => {
+  // Deduplicate only GET requests — mutations must never be collapsed
+  if (options.method === 'GET') {
+    const requestKey = `GET:${url}`;
+    if (pendingRequests.has(requestKey)) {
+      return pendingRequests.get(requestKey);
+    }
+
+    const promise = doFetch(url, options, timeout, requestKey);
+    pendingRequests.set(requestKey, promise);
+    return promise;
+  }
+
+  return doFetch(url, options, timeout, null);
+};
+
+const doFetch = async (url, options, timeout, requestKey) => {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 5000);
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   try {
     const response = await fetch(url, {
       ...options,
       signal: controller.signal,
     });
-    
+
     clearTimeout(timeoutId);
-    
+
     if (!response.ok) {
       const error = new Error(
         `API Error: ${response.status} ${response.statusText} at ${url}`
@@ -21,7 +41,7 @@ const request = async (url, options) => {
       error.status = response.status;
       throw error;
     }
-    
+
     const contentType = response.headers.get('content-type');
     if (contentType && contentType.includes('application/json')) {
       return response.json();
@@ -34,15 +54,18 @@ const request = async (url, options) => {
     throw error;
   } finally {
     clearTimeout(timeoutId);
+    if (requestKey) {
+      pendingRequests.delete(requestKey);
+    }
   }
 };
 
 const createJsonOptions = (method, body = null) => ({
   method,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  ...(body && { body: JSON.stringify(body) }),
+  ...(body && {
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }),
 });
 
 export const API = {
@@ -56,42 +79,42 @@ export const API = {
       const url = buildUrl(`/locations/${locationId}/games`);
       return request(url, createJsonOptions('GET'));
     },
-    
+
     reserveRandom: async (locationId) => {
       const url = buildUrl(`/locations/${locationId}/games/reservations`);
       return request(url, createJsonOptions('POST'));
     },
-    
+
     reserve: async (locationId, gameId) => {
       const url = buildUrl(`/locations/${locationId}/games/${gameId}/reservations`);
       return request(url, createJsonOptions('POST'));
     },
-    
+
     release: async (locationId, gameId) => {
       const url = buildUrl(`/locations/${locationId}/games/${gameId}/reservations`);
       return request(url, createJsonOptions('DELETE'));
     },
-    
+
     remove: async (locationId, gameId) => {
       const url = buildUrl(`/locations/${locationId}/games/${gameId}`);
       return request(url, createJsonOptions('DELETE'));
     },
-    
+
     enable: async (locationId, gameId) => {
       const url = buildUrl(`/locations/${locationId}/games/${gameId}/enable`);
       return request(url, createJsonOptions('POST'));
     },
-    
+
     disable: async (locationId, gameId) => {
       const url = buildUrl(`/locations/${locationId}/games/${gameId}/disable`);
       return request(url, createJsonOptions('POST'));
     },
-    
+
     add: async (locationId, name, abbreviation) => {
       const url = buildUrl(`/locations/${locationId}/games`);
       return request(url, createJsonOptions('POST', { name, abbreviation }));
     },
-    
+
     update: async (locationId, gameId, name, abbreviation) => {
       const url = buildUrl(`/locations/${locationId}/games/${gameId}`);
       return request(url, createJsonOptions('PUT', { name, abbreviation }));
@@ -99,16 +122,16 @@ export const API = {
 
     getStats: async (locationId, gameId) => {
       const url = buildUrl(`/locations/${locationId}/games/${gameId}/reservations`);
-      return request(url, createJsonOptions('GET'));
+      return request(url, createJsonOptions('GET'), STATS_API_TIMEOUT_MS);
     },
   },
-  
+
   locations: {
     getAll: async () => {
       const url = buildUrl('/locations');
       return request(url, createJsonOptions('GET'));
     },
-    
+
     add: async (name) => {
       const url = buildUrl('/locations');
       return request(url, createJsonOptions('POST', { name }));
