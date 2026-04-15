@@ -11,7 +11,7 @@
   },
   "name": "raffler",
   "version": "1.0.0",
-  "description": "Nothing to see here yet. Move along.",
+  "description": "Web application for managing pinball games at locations",
   "main": "index.js",
   "directories": {
     "doc": "docs"
