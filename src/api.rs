@@ -9,7 +9,53 @@ use axum::{
     response::Json,
 };
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use sqlx::postgres::PgPool;
+
+// API error type
+pub(crate) enum ApiError {
+    NotFound(String),
+    Conflict(String),
+    Internal(String),
+}
+
+impl IntoResponse for ApiError {
+    fn into_response(self) -> axum::response::Response {
+        let (status, message) = match self {
+            ApiError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
+            ApiError::Conflict(msg) => (StatusCode::CONFLICT, msg),
+            ApiError::Internal(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+        };
+        (status, Json(json!({"error": message}))).into_response()
+    }
+}
+
+fn map_not_found(message: &str) -> impl FnOnce(sqlx::Error) -> ApiError {
+    let msg = message.to_string();
+    |e| match e {
+        sqlx::Error::RowNotFound => ApiError::NotFound(msg),
+        _ => {
+            tracing::error!("Database error: {e}");
+            ApiError::Internal("Internal server error".into())
+        }
+    }
+}
+
+fn map_conflict(message: &str) -> impl FnOnce(sqlx::Error) -> ApiError {
+    let msg = message.to_string();
+    |e| match e {
+        sqlx::Error::RowNotFound => ApiError::Conflict(msg),
+        _ => {
+            tracing::error!("Database error: {e}");
+            ApiError::Internal("Internal server error".into())
+        }
+    }
+}
+
+fn map_internal(e: sqlx::Error) -> ApiError {
+    tracing::error!("Database error: {e}");
+    ApiError::Internal("Internal server error".into())
+}
 
 // API requests
 #[derive(Debug, Deserialize)]
@@ -35,8 +81,9 @@ pub struct NoteResponse {
     note: String,
     created_at: NaiveDateTime,
 }
-impl NoteResponse {
-    fn from(note: db::Note) -> NoteResponse {
+
+impl From<db::Note> for NoteResponse {
+    fn from(note: db::Note) -> Self {
         NoteResponse {
             id: note.id,
             note: note.note,
@@ -53,8 +100,9 @@ pub struct ReservationStatsResponse {
     average_reserved_minutes: f64,
     median_reserved_minutes: f64,
 }
-impl ReservationStatsResponse {
-    fn from(stats: db::ReservationStats) -> ReservationStatsResponse {
+
+impl From<db::ReservationStats> for ReservationStatsResponse {
+    fn from(stats: db::ReservationStats) -> Self {
         ReservationStatsResponse {
             game_id: stats.game_id,
             reservation_count: stats.reservation_count,
@@ -71,8 +119,9 @@ pub struct GameResponse {
     name: String,
     abbreviation: String,
 }
-impl GameResponse {
-    fn from(game: db::Game) -> GameResponse {
+
+impl From<db::Game> for GameResponse {
+    fn from(game: db::Game) -> Self {
         GameResponse {
             id: game.id,
             name: game.name,
@@ -91,8 +140,9 @@ pub struct GameWithNotesResponse {
     reserved_minutes: i32,
     notes: Vec<NoteResponse>,
 }
-impl GameWithNotesResponse {
-    fn from(game_with_notes: db::GameWithNotes) -> GameWithNotesResponse {
+
+impl From<db::GameWithNotes> for GameWithNotesResponse {
+    fn from(game_with_notes: db::GameWithNotes) -> Self {
         GameWithNotesResponse {
             id: game_with_notes.id,
             name: game_with_notes.name,
@@ -100,19 +150,8 @@ impl GameWithNotesResponse {
             disabled_at: game_with_notes.disabled_at,
             reserved_at: game_with_notes.reserved_at,
             reserved_minutes: game_with_notes.reserved_minutes,
-            notes: game_with_notes
-                .notes
-                .into_iter()
-                .map(NoteResponse::from)
-                .collect(),
+            notes: game_with_notes.notes.into_iter().map(Into::into).collect(),
         }
-    }
-
-    fn from_vec(games_with_notes: Vec<db::GameWithNotes>) -> Vec<GameWithNotesResponse> {
-        games_with_notes
-            .into_iter()
-            .map(GameWithNotesResponse::from)
-            .collect()
     }
 }
 
@@ -121,125 +160,89 @@ pub struct LocationResponse {
     id: i64,
     name: String,
 }
-impl LocationResponse {
-    fn from(location: db::Location) -> LocationResponse {
+
+impl From<db::Location> for LocationResponse {
+    fn from(location: db::Location) -> Self {
         LocationResponse {
             id: location.id,
             name: location.name,
         }
     }
-    fn from_vec(locations: Vec<db::Location>) -> Vec<LocationResponse> {
-        locations
-            .into_iter()
-            .map(|l| LocationResponse {
-                id: l.id,
-                name: l.name,
-            })
-            .collect()
-    }
 }
 
-pub async fn get_all_locations(State(pool): State<PgPool>) -> impl IntoResponse {
-    let locations = db::Location::find_all(&pool).await;
-
-    match locations {
-        Ok(locations) => Ok(Json(LocationResponse::from_vec(locations))),
-        Err(_e) => Err(StatusCode::NOT_FOUND),
-    }
+pub async fn get_all_locations(
+    State(pool): State<PgPool>,
+) -> Result<Json<Vec<LocationResponse>>, ApiError> {
+    let locations = db::Location::find_all(&pool).await.map_err(map_internal)?;
+    Ok(Json(locations.into_iter().map(Into::into).collect()))
 }
 
 pub async fn get_location_by_id(
     State(pool): State<PgPool>,
     Path(location_id): Path<i64>,
-) -> impl IntoResponse {
-    let location = db::Location::find_by_id(&pool, location_id).await;
-
-    match location {
-        Ok(location) => Ok(Json(LocationResponse::from(location))),
-        Err(_e) => Err(StatusCode::NOT_FOUND),
-    }
+) -> Result<Json<LocationResponse>, ApiError> {
+    let location = db::Location::find_by_id(&pool, location_id)
+        .await
+        .map_err(map_not_found("Location not found"))?;
+    Ok(Json(location.into()))
 }
 
 pub async fn post_add_location(
     State(pool): State<PgPool>,
     Json(payload): Json<LocationRequest>,
-) -> impl IntoResponse {
-    let location = db::Location::add(&pool, payload.name).await;
-
-    match location {
-        Ok(location) => Ok(Json(LocationResponse::from(location))),
-        Err(e) => {
-            tracing::debug!("Error {e}");
-            Err(StatusCode::BAD_REQUEST)
-        }
-    }
+) -> Result<Json<LocationResponse>, ApiError> {
+    let location = db::Location::add(&pool, payload.name)
+        .await
+        .map_err(map_internal)?;
+    Ok(Json(location.into()))
 }
 
 pub async fn delete_location_by_id(
     State(pool): State<PgPool>,
     Path(location_id): Path<i64>,
-) -> impl IntoResponse {
-    let location = db::Location::delete_by_id(&pool, location_id).await;
-
-    match location {
-        Ok(location) => Ok(Json(LocationResponse::from(location))),
-        Err(e) => {
-            tracing::debug!("Error {e}");
-            Err(StatusCode::BAD_REQUEST)
-        }
-    }
+) -> Result<Json<LocationResponse>, ApiError> {
+    let location = db::Location::delete_by_id(&pool, location_id)
+        .await
+        .map_err(map_not_found("Location not found"))?;
+    Ok(Json(location.into()))
 }
 
 pub async fn get_games_by_location_id(
     State(pool): State<PgPool>,
     Path(location_id): Path<i64>,
-) -> impl IntoResponse {
-    let games_with_notes = db::Game::find_by_location_id(&pool, location_id).await;
-    match games_with_notes {
-        Ok(games_with_notes) => Ok(Json(GameWithNotesResponse::from_vec(games_with_notes))),
-        Err(e) => {
-            tracing::debug!("Error {e}");
-            Err(StatusCode::NOT_FOUND)
-        }
-    }
+) -> Result<Json<Vec<GameWithNotesResponse>>, ApiError> {
+    let games_with_notes = db::Game::find_by_location_id(&pool, location_id)
+        .await
+        .map_err(map_internal)?;
+    Ok(Json(games_with_notes.into_iter().map(Into::into).collect()))
 }
 
 pub async fn get_game_at_location_by_id(
     State(pool): State<PgPool>,
     Path((location_id, game_id)): Path<(i64, i64)>,
-) -> impl IntoResponse {
-    let game_with_notes = db::Game::find_by_id(&pool, game_id, location_id).await;
-
-    match game_with_notes {
-        Ok(game_with_notes) => Ok(Json(GameWithNotesResponse::from(game_with_notes))),
-        Err(e) => {
-            tracing::debug!("Error {e}");
-            Err(StatusCode::NOT_FOUND)
-        }
-    }
+) -> Result<Json<GameWithNotesResponse>, ApiError> {
+    let game_with_notes = db::Game::find_by_id(&pool, game_id, location_id)
+        .await
+        .map_err(map_not_found("Game not found"))?;
+    Ok(Json(game_with_notes.into()))
 }
 
 pub async fn post_add_game_at_location(
     State(pool): State<PgPool>,
     Path(location_id): Path<i64>,
     Json(payload): Json<GameRequest>,
-) -> impl IntoResponse {
-    let game = db::Game::add(&pool, location_id, payload.name, payload.abbreviation).await;
-
-    match game {
-        Ok(game) => Ok(Json(GameResponse::from(game))),
-        Err(e) => {
-            tracing::debug!("Error {e}");
-            Err(StatusCode::BAD_REQUEST)
-        }
-    }
+) -> Result<Json<GameResponse>, ApiError> {
+    let game = db::Game::add(&pool, location_id, payload.name, payload.abbreviation)
+        .await
+        .map_err(map_internal)?;
+    Ok(Json(game.into()))
 }
 
 pub async fn put_update_game_at_location(
     State(pool): State<PgPool>,
     Path((location_id, game_id)): Path<(i64, i64)>,
     Json(payload): Json<GameRequest>,
-) -> impl IntoResponse {
+) -> Result<Json<GameResponse>, ApiError> {
     let game = db::Game::update_by_id(
         &pool,
         location_id,
@@ -247,150 +250,99 @@ pub async fn put_update_game_at_location(
         payload.name,
         payload.abbreviation,
     )
-    .await;
-
-    match game {
-        Ok(game) => Ok(Json(GameResponse::from(game))),
-        Err(e) => {
-            tracing::debug!("Error {e}");
-            Err(StatusCode::BAD_REQUEST)
-        }
-    }
+    .await
+    .map_err(map_conflict("Game not found or deleted"))?;
+    Ok(Json(game.into()))
 }
 
 pub async fn post_reserve_random_game_at_location(
     State(pool): State<PgPool>,
     Path(location_id): Path<i64>,
-) -> impl IntoResponse {
-    let game = db::Game::reserve_random_by_location_id(&pool, location_id).await;
-
-    match game {
-        Ok(game) => Ok(Json(GameResponse::from(game))),
-        Err(e) => {
-            tracing::debug!("Error {e}");
-            Err(StatusCode::BAD_REQUEST)
-        }
-    }
+) -> Result<Json<GameResponse>, ApiError> {
+    let game = db::Game::reserve_random_by_location_id(&pool, location_id)
+        .await
+        .map_err(map_conflict("No available games at this location"))?;
+    Ok(Json(game.into()))
 }
 
 pub async fn delete_game_reservation_at_location_by_id(
     State(pool): State<PgPool>,
     Path((location_id, game_id)): Path<(i64, i64)>,
-) -> impl IntoResponse {
-    let game = db::Game::release_reservation_by_id(&pool, location_id, game_id).await;
-
-    match game {
-        Ok(game) => Ok(Json(GameResponse::from(game))),
-        Err(e) => {
-            tracing::debug!("Error {e}");
-            Err(StatusCode::BAD_REQUEST)
-        }
-    }
+) -> Result<Json<GameResponse>, ApiError> {
+    let game = db::Game::release_reservation_by_id(&pool, location_id, game_id)
+        .await
+        .map_err(map_conflict("Game not found or not reserved"))?;
+    Ok(Json(game.into()))
 }
 
 pub async fn post_disable_game_at_location_by_id(
     State(pool): State<PgPool>,
     Path((location_id, game_id)): Path<(i64, i64)>,
-) -> impl IntoResponse {
-    let game = db::Game::disable_by_id(&pool, location_id, game_id).await;
-
-    match game {
-        Ok(game) => Ok(Json(GameResponse::from(game))),
-        Err(e) => {
-            tracing::debug!("Error {e}");
-            Err(StatusCode::BAD_REQUEST)
-        }
-    }
+) -> Result<Json<GameResponse>, ApiError> {
+    let game = db::Game::disable_by_id(&pool, location_id, game_id)
+        .await
+        .map_err(map_conflict("Game not found, deleted, or already disabled"))?;
+    Ok(Json(game.into()))
 }
 
 pub async fn post_enable_game_at_location_by_id(
     State(pool): State<PgPool>,
     Path((location_id, game_id)): Path<(i64, i64)>,
-) -> impl IntoResponse {
-    let game = db::Game::enable_by_id(&pool, location_id, game_id).await;
-
-    match game {
-        Ok(game) => Ok(Json(GameResponse::from(game))),
-        Err(e) => {
-            tracing::debug!("Error {e}");
-            Err(StatusCode::BAD_REQUEST)
-        }
-    }
+) -> Result<Json<GameResponse>, ApiError> {
+    let game = db::Game::enable_by_id(&pool, location_id, game_id)
+        .await
+        .map_err(map_conflict("Game not found, deleted, or already enabled"))?;
+    Ok(Json(game.into()))
 }
 
 pub async fn delete_game_at_location_by_id(
     State(pool): State<PgPool>,
     Path((location_id, game_id)): Path<(i64, i64)>,
-) -> impl IntoResponse {
-    let game = db::Game::delete_by_id(&pool, location_id, game_id).await;
-
-    match game {
-        Ok(game) => Ok(Json(GameResponse::from(game))),
-        Err(e) => {
-            tracing::debug!("Error {e}");
-            Err(StatusCode::BAD_REQUEST)
-        }
-    }
+) -> Result<Json<GameResponse>, ApiError> {
+    let game = db::Game::delete_by_id(&pool, location_id, game_id)
+        .await
+        .map_err(map_not_found("Game not found"))?;
+    Ok(Json(game.into()))
 }
 
 pub async fn post_add_note_for_game_at_location(
     State(pool): State<PgPool>,
-    Path((_location_id, game_id)): Path<(i64, i64)>,
+    Path((location_id, game_id)): Path<(i64, i64)>,
     Json(payload): Json<NoteRequest>,
-) -> impl IntoResponse {
-    // TODO API weirdeness: location id is not verified/used.
-    let note = db::Note::add_by_game_id(&pool, payload.note, game_id).await;
-
-    match note {
-        Ok(note) => Ok(Json(NoteResponse::from(note))),
-        Err(e) => {
-            tracing::debug!("Error {e}");
-            Err(StatusCode::BAD_REQUEST)
-        }
-    }
+) -> Result<Json<NoteResponse>, ApiError> {
+    let note = db::Note::add_by_game_id(&pool, payload.note, game_id, location_id)
+        .await
+        .map_err(map_conflict("Game not found at this location"))?;
+    Ok(Json(note.into()))
 }
 
 pub async fn delete_note_for_game_by_id(
     State(pool): State<PgPool>,
-    Path((_location_id, game_id, note_id)): Path<(i64, i64, i64)>,
-) -> impl IntoResponse {
-    // TODO API weirdness: location_id is not verified/used.
-    let note = db::Note::delete_by_id(&pool, game_id, note_id).await;
-
-    match note {
-        Ok(note) => Ok(Json(NoteResponse::from(note))),
-        Err(e) => {
-            tracing::debug!("Error {e}");
-            Err(StatusCode::BAD_REQUEST)
-        }
-    }
+    Path((location_id, game_id, note_id)): Path<(i64, i64, i64)>,
+) -> Result<Json<NoteResponse>, ApiError> {
+    let note = db::Note::delete_by_id(&pool, game_id, note_id, location_id)
+        .await
+        .map_err(map_not_found("Note not found"))?;
+    Ok(Json(note.into()))
 }
 
 pub async fn post_reserve_game_at_location_by_id(
     State(pool): State<PgPool>,
     Path((location_id, game_id)): Path<(i64, i64)>,
-) -> impl IntoResponse {
-    let game = db::Game::reserve_by_id(&pool, location_id, game_id).await;
-
-    match game {
-        Ok(game) => Ok(Json(GameResponse::from(game))),
-        Err(e) => {
-            tracing::debug!("Error {e}");
-            Err(StatusCode::BAD_REQUEST)
-        }
-    }
+) -> Result<Json<GameResponse>, ApiError> {
+    let game = db::Game::reserve_by_id(&pool, location_id, game_id)
+        .await
+        .map_err(map_conflict("Game unavailable or already reserved"))?;
+    Ok(Json(game.into()))
 }
 
 pub async fn get_game_reservation_stats(
     State(pool): State<PgPool>,
-    Path((_location_id, game_id)): Path<(i64, i64)>,
-) -> impl IntoResponse {
-    let stats = db::ReservationStats::get_reservations_stats_by_game_id(&pool, game_id).await;
-    match stats {
-        Ok(stats) => Ok(Json(ReservationStatsResponse::from(stats))),
-        Err(e) => {
-            tracing::debug!("Error getting stats: {e}");
-            Err(StatusCode::BAD_REQUEST)
-        }
-    }
+    Path((location_id, game_id)): Path<(i64, i64)>,
+) -> Result<Json<ReservationStatsResponse>, ApiError> {
+    let stats =
+        db::ReservationStats::get_reservations_stats_by_game_id(&pool, game_id, location_id)
+            .await
+            .map_err(map_not_found("Game not found at this location"))?;
+    Ok(Json(stats.into()))
 }

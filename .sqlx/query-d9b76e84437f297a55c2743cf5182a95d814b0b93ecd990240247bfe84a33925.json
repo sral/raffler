@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT *\n                     FROM note\n                    WHERE deleted_at IS NULL\n                      AND game_id = $1\n                 ORDER BY created_at ASC",
+  "query": "UPDATE note\n                  SET deleted_at = now()\n                WHERE id = $2\n                  AND game_id = $1\n                  AND deleted_at IS NULL\n                  AND EXISTS (SELECT 1 FROM game WHERE game.id = $1 AND game.location_id = $3 AND game.deleted_at IS NULL)\n            RETURNING *",
   "describe": {
     "columns": [
       {
@@ -36,6 +36,8 @@
     ],
     "parameters": {
       "Left": [
+        "Int8",
+        "Int8",
         "Int8"
       ]
     },
@@ -48,5 +50,5 @@
       false
     ]
   },
-  "hash": "99d47ac68d7397a6ed96876628ced9af2d408bdcbd2658aac948f324d14e85f7"
+  "hash": "d9b76e84437f297a55c2743cf5182a95d814b0b93ecd990240247bfe84a33925"
 }

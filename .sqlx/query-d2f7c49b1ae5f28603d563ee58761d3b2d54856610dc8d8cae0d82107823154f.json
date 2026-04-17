@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "UPDATE note\n                  SET deleted_at = now()\n                WHERE id = $2\n                  AND game_id = $1\n                  AND deleted_at IS NULL\n            RETURNING *",
+  "query": "INSERT INTO note (note, game_id)\n                    SELECT $1, id FROM game\n                     WHERE id = $2\n                       AND location_id = $3\n                       AND deleted_at IS NULL\n                 RETURNING *",
   "describe": {
     "columns": [
       {
@@ -36,6 +36,7 @@
     ],
     "parameters": {
       "Left": [
+        "Text",
         "Int8",
         "Int8"
       ]
@@ -49,5 +50,5 @@
       false
     ]
   },
-  "hash": "1a93411ac2abd61a5252231d2dc5e34b752ce2712a2ad5a7db96abc3579ed0b2"
+  "hash": "d2f7c49b1ae5f28603d563ee58761d3b2d54856610dc8d8cae0d82107823154f"
 }

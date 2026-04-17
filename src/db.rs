@@ -1,11 +1,11 @@
+use std::collections::HashMap;
+
 use chrono::prelude::*;
 
-use futures_util::TryStreamExt;
 use serde::Serialize;
 use sqlx::PgPool;
-use std::error;
 
-type Result<T> = std::result::Result<T, Box<dyn error::Error + Send + Sync>>;
+type Result<T> = std::result::Result<T, sqlx::Error>;
 
 #[derive(Debug, Serialize)]
 pub struct Location {
@@ -22,8 +22,7 @@ impl Location {
             r#"SELECT * FROM location
                 WHERE deleted_at IS NULL"#
         )
-        .fetch(pool)
-        .try_collect::<Vec<_>>()
+        .fetch_all(pool)
         .await?;
 
         Ok(locations)
@@ -147,7 +146,6 @@ pub struct Game {
 
 impl Game {
     pub async fn find_by_id(pool: &PgPool, id: i64, location_id: i64) -> Result<GameWithNotes> {
-        let mut tx = pool.begin().await?;
         let game = sqlx::query_as!(
             Game,
             r#"SELECT *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!"
@@ -158,7 +156,7 @@ impl Game {
             id,
             location_id
         )
-        .fetch_one(&mut *tx)
+        .fetch_one(pool)
         .await?;
 
         let notes = sqlx::query_as!(
@@ -170,17 +168,13 @@ impl Game {
                 ORDER BY created_at ASC"#,
             game.id
         )
-        .fetch(&mut *tx)
-        .try_collect::<Vec<_>>()
+        .fetch_all(pool)
         .await?;
 
-        // tx.commit().await?;
         Ok(GameWithNotes::build(game, notes))
     }
 
     pub async fn find_by_location_id(pool: &PgPool, id: i64) -> Result<Vec<GameWithNotes>> {
-        let mut tx = pool.begin().await?;
-
         let games = sqlx::query_as!(
             Game,
             r#"SELECT game.*, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!"
@@ -193,28 +187,39 @@ impl Game {
              ORDER BY abbreviation, id ASC"#,
             id
         )
-        .fetch(&mut *tx)
-        .try_collect::<Vec<_>>()
+        .fetch_all(pool)
         .await?;
 
-        let mut games_with_notes = Vec::new();
-        for g in games {
-            let notes = sqlx::query_as!(
-                Note,
-                r#"SELECT *
-                     FROM note
-                    WHERE deleted_at IS NULL
-                      AND game_id = $1
-                 ORDER BY created_at ASC"#,
-                g.id
-            )
-            .fetch(&mut *tx)
-            .try_collect::<Vec<_>>()
-            .await?;
-            games_with_notes.push(GameWithNotes::build(g, notes));
+        if games.is_empty() {
+            return Ok(Vec::new());
         }
 
-        //tx.commit().await?;
+        let game_ids: Vec<i64> = games.iter().map(|g| g.id).collect();
+        let notes = sqlx::query_as!(
+            Note,
+            r#"SELECT *
+                 FROM note
+                WHERE deleted_at IS NULL
+                  AND game_id = ANY($1)
+             ORDER BY created_at ASC"#,
+            &game_ids
+        )
+        .fetch_all(pool)
+        .await?;
+
+        let mut notes_map: HashMap<i64, Vec<Note>> = HashMap::new();
+        for note in notes {
+            notes_map.entry(note.game_id).or_default().push(note);
+        }
+
+        let games_with_notes = games
+            .into_iter()
+            .map(|g| {
+                let notes = notes_map.remove(&g.id).unwrap_or_default();
+                GameWithNotes::build(g, notes)
+            })
+            .collect();
+
         Ok(games_with_notes)
     }
 
@@ -253,6 +258,7 @@ impl Game {
                       abbreviation = $2
                 WHERE id = $3
                   AND location_id = $4
+                  AND deleted_at IS NULL
             RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
             name,
             abbreviation,
@@ -272,6 +278,8 @@ impl Game {
                   SET disabled_at = now()
                 WHERE id = $1
                   AND location_id = $2
+                  AND deleted_at IS NULL
+                  AND disabled_at IS NULL
             RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
             id,
             location_id,
@@ -289,6 +297,8 @@ impl Game {
                   SET disabled_at = NULL
                 WHERE id = $1
                   AND location_id = $2
+                  AND deleted_at IS NULL
+                  AND disabled_at IS NOT NULL
             RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
             id,
             location_id,
@@ -308,6 +318,7 @@ impl Game {
                   SET deleted_at = now()
                 WHERE id = $1
                   AND location_id = $2
+                  AND deleted_at IS NULL
             RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
             id,
             location_id,
@@ -330,20 +341,38 @@ impl Game {
     }
 
     pub async fn reserve_by_id(pool: &PgPool, location_id: i64, id: i64) -> Result<Game> {
+        let mut tx = pool.begin().await?;
+
+        sqlx::query_as!(
+            Game,
+            r#"SELECT *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!"
+                 FROM game
+                WHERE id = $1
+                  AND location_id = $2
+                  AND deleted_at IS NULL
+                  AND disabled_at IS NULL
+                  AND reserved_at IS NULL
+             FOR UPDATE"#,
+            id,
+            location_id,
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+
         let game = sqlx::query_as!(
             Game,
             r#"UPDATE game
                   SET reserved_at = now()
                 WHERE id = $1
                   AND location_id = $2
-                  AND reserved_at IS NULL
             RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
             id,
             location_id,
         )
-        .fetch_one(pool)
+        .fetch_one(&mut *tx)
         .await?;
 
+        tx.commit().await?;
         Ok(game)
     }
 
@@ -441,8 +470,7 @@ impl Game {
                 ORDER BY reserved_at ASC"#,
             minutes
         )
-        .fetch(pool)
-        .try_collect::<Vec<_>>()
+        .fetch_all(pool)
         .await?;
 
         Ok(games)
@@ -462,19 +490,29 @@ impl ReservationStats {
     pub async fn get_reservations_stats_by_game_id(
         pool: &PgPool,
         game_id: i64,
+        location_id: i64,
     ) -> Result<ReservationStats> {
+        // Verify game exists at location
+        sqlx::query!(
+            r#"SELECT id FROM game WHERE id = $1 AND location_id = $2 AND deleted_at IS NULL"#,
+            game_id,
+            location_id
+        )
+        .fetch_one(pool)
+        .await?;
+
         let stats = sqlx::query_as!(
             ReservationStats,
             r#"
             WITH reservation_durations AS (
-                SELECT 
+                SELECT
                     game_id,
                     EXTRACT(EPOCH FROM (released_at - reserved_at)) / 60 as duration_minutes
                  FROM reservation
                 WHERE game_id = $1
                   AND released_at IS NOT NULL
             )
-            SELECT 
+            SELECT
                 $1 as "game_id!",
                 COUNT(*) as "reservation_count!",
                 COALESCE(SUM(duration_minutes)::bigint, 0) as "reserved_minutes!",
@@ -502,14 +540,23 @@ pub struct Note {
 }
 
 impl Note {
-    pub async fn add_by_game_id(pool: &PgPool, note: String, game_id: i64) -> Result<Note> {
+    pub async fn add_by_game_id(
+        pool: &PgPool,
+        note: String,
+        game_id: i64,
+        location_id: i64,
+    ) -> Result<Note> {
         let note = sqlx::query_as!(
             Note,
             r#"INSERT INTO note (note, game_id)
-                    VALUES ($1, $2)
+                    SELECT $1, id FROM game
+                     WHERE id = $2
+                       AND location_id = $3
+                       AND deleted_at IS NULL
                  RETURNING *"#,
             note,
             game_id,
+            location_id,
         )
         .fetch_one(pool)
         .await?;
@@ -517,7 +564,12 @@ impl Note {
         Ok(note)
     }
 
-    pub async fn delete_by_id(pool: &PgPool, game_id: i64, id: i64) -> Result<Note> {
+    pub async fn delete_by_id(
+        pool: &PgPool,
+        game_id: i64,
+        id: i64,
+        location_id: i64,
+    ) -> Result<Note> {
         let note = sqlx::query_as!(
             Note,
             r#"UPDATE note
@@ -525,9 +577,11 @@ impl Note {
                 WHERE id = $2
                   AND game_id = $1
                   AND deleted_at IS NULL
+                  AND EXISTS (SELECT 1 FROM game WHERE game.id = $1 AND game.location_id = $3 AND game.deleted_at IS NULL)
             RETURNING *"#,
             game_id,
-            id
+            id,
+            location_id,
         )
         .fetch_one(pool)
         .await?;
