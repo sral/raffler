@@ -2,14 +2,13 @@ import React from 'react';
 import { Navbar, Container, Nav, NavDropdown } from 'react-bootstrap';
 
 /**
- * Navigation bar with location selector and add game button
+ * Navigation bar with location selector
  */
 export const LocationPicker = React.memo(function LocationPicker({
   locations,
   selectedLocation,
   onSelectLocation,
   onAddLocation,
-  onAddGame,
 }) {
   const handleSelectLocation = React.useCallback((location) => {
     onSelectLocation(location);
@@ -20,11 +19,6 @@ export const LocationPicker = React.memo(function LocationPicker({
     onAddLocation();
   }, [onAddLocation]);
 
-  const handleAddGame = React.useCallback((e) => {
-    e.preventDefault();
-    onAddGame();
-  }, [onAddGame]);
-
   return (
     <Navbar bg="light" expand="lg">
       <Container>
@@ -32,15 +26,6 @@ export const LocationPicker = React.memo(function LocationPicker({
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
         <Navbar.Collapse id="basic-navbar-nav">
           <Nav className="ms-auto">
-            {selectedLocation && (
-              <Nav.Link
-                href="#"
-                variant="outline-secondary"
-                onClick={handleAddGame}
-              >
-                Add game
-              </Nav.Link>
-            )}
             <NavDropdown title="Locations" id="basic-nav-dropdown">
               {locations.map((location) => (
                 <NavDropdown.Item

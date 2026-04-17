@@ -278,7 +278,6 @@ export function Raffler() {
           selectedLocation={selectedLocation}
           onSelectLocation={handleSelectLocation}
           onAddLocation={addLocationModal.open}
-          onAddGame={addGameModal.open}
         />
       </header>
 
@@ -298,6 +297,7 @@ export function Raffler() {
             onRemove={handleRemoveGame}
             onShowDetails={handleShowDetails}
             onShowStats={handleShowStats}
+            onAddGame={addGameModal.open}
           />
         </div>
       </div>

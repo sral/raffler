@@ -1,10 +1,10 @@
 import React from 'react';
-import { Container } from 'react-bootstrap';
+import { Button, Container } from 'react-bootstrap';
 import { GameButton } from './GameButton.jsx';
 import { PageLoader } from '../shared/LoadingSpinner.jsx';
 
 /**
- * List of game buttons
+ * List of game buttons with an add game button at the end
  */
 export const GameList = React.memo(function GameList({
   games,
@@ -14,6 +14,7 @@ export const GameList = React.memo(function GameList({
   onRemove,
   onShowDetails,
   onShowStats,
+  onAddGame,
 }) {
   if (loading) {
     return <PageLoader />;
@@ -23,6 +24,15 @@ export const GameList = React.memo(function GameList({
     return (
       <Container className="text-center mt-5">
         <p className="text-muted">No games at this location yet. Add one to get started!</p>
+        <Button
+          variant="outline-secondary"
+          className="mx-1 my-2"
+          style={{ border: '2px dashed #ccc', color: '#999' }}
+          onClick={onAddGame}
+          aria-label="Add game"
+        >
+          + Add game
+        </Button>
       </Container>
     );
   }
@@ -40,6 +50,15 @@ export const GameList = React.memo(function GameList({
           onShowStats={() => onShowStats(game)}
         />
       ))}
+      <Button
+        variant="outline-secondary"
+        className="fixed-width-button mx-1 my-2"
+        style={{ border: '2px dashed #ccc', color: '#999' }}
+        onClick={onAddGame}
+        aria-label="Add game"
+      >
+        +
+      </Button>
     </Container>
   );
 });
