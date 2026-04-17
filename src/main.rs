@@ -81,7 +81,7 @@ async fn main() {
         Err(e) => tracing::debug!("Error {e}"),
     }
 
-    let serve_dir = ServeDir::new("static").not_found_service(ServeFile::new("static/index.html"));
+    let serve_dir = ServeDir::new("dist").not_found_service(ServeFile::new("dist/index.html"));
 
     let app = Router::new()
         .route(
@@ -128,7 +128,6 @@ async fn main() {
             "/v1/locations/{location_id}/games/{game_id}/notes/{note_id}",
             delete(api::delete_note_for_game_by_id),
         )
-        .nest_service("/assets", serve_dir.clone())
         .fallback_service(serve_dir)
         .layer(ServiceBuilder::new().layer(TraceLayer::new_for_http()))
         .with_state(pool);
