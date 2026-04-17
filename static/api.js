@@ -35,9 +35,12 @@ const doFetch = async (url, options, timeout, requestKey) => {
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      const error = new Error(
-        `API Error: ${response.status} ${response.statusText} at ${url}`
-      );
+      let errorMessage = `${response.status} ${response.statusText}`;
+      try {
+        const body = await response.json();
+        if (body.error) errorMessage = body.error;
+      } catch { /* use default */ }
+      const error = new Error(errorMessage);
       error.status = response.status;
       throw error;
     }

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO note (note, game_id)\n                    VALUES ($1, $2)\n                 RETURNING *",
+  "query": "SELECT *\n                 FROM note\n                WHERE deleted_at IS NULL\n                  AND game_id = ANY($1)\n             ORDER BY created_at ASC",
   "describe": {
     "columns": [
       {
@@ -36,8 +36,7 @@
     ],
     "parameters": {
       "Left": [
-        "Text",
-        "Int8"
+        "Int8Array"
       ]
     },
     "nullable": [
@@ -49,5 +48,5 @@
       false
     ]
   },
-  "hash": "d9067d56854f63223e0aba5881915bcda8972f100ef0dc9d370b3aca8f98c80f"
+  "hash": "616532e4d2c4982c940c9c68752be2863dde24a06a7c2a78e3f8acc859a65fd2"
 }
