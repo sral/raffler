@@ -230,7 +230,9 @@ impl Game {
         let game = sqlx::query_as!(
                 Game,
                 r#"INSERT INTO game (location_id, name, abbreviation)
-                        VALUES ($1, $2, $3)
+                        SELECT id, $2, $3 FROM location
+                         WHERE id = $1
+                           AND deleted_at IS NULL
                 RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
                 location_id,
                 name,

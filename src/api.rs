@@ -190,11 +190,11 @@ pub async fn get_location_by_id(
 pub async fn post_add_location(
     State(pool): State<PgPool>,
     Json(payload): Json<LocationRequest>,
-) -> Result<Json<LocationResponse>, ApiError> {
+) -> Result<(StatusCode, Json<LocationResponse>), ApiError> {
     let location = db::Location::add(&pool, payload.name)
         .await
         .map_err(map_internal)?;
-    Ok(Json(location.into()))
+    Ok((StatusCode::CREATED, Json(location.into())))
 }
 
 pub async fn delete_location_by_id(
@@ -231,11 +231,11 @@ pub async fn post_add_game_at_location(
     State(pool): State<PgPool>,
     Path(location_id): Path<i64>,
     Json(payload): Json<GameRequest>,
-) -> Result<Json<GameResponse>, ApiError> {
+) -> Result<(StatusCode, Json<GameResponse>), ApiError> {
     let game = db::Game::add(&pool, location_id, payload.name, payload.abbreviation)
         .await
-        .map_err(map_internal)?;
-    Ok(Json(game.into()))
+        .map_err(map_not_found("Location not found"))?;
+    Ok((StatusCode::CREATED, Json(game.into())))
 }
 
 pub async fn put_update_game(
@@ -303,11 +303,11 @@ pub async fn post_add_note_for_game(
     State(pool): State<PgPool>,
     Path(game_id): Path<i64>,
     Json(payload): Json<NoteRequest>,
-) -> Result<Json<NoteResponse>, ApiError> {
+) -> Result<(StatusCode, Json<NoteResponse>), ApiError> {
     let note = db::Note::add_by_game_id(&pool, payload.note, game_id)
         .await
-        .map_err(map_conflict("Game not found"))?;
-    Ok(Json(note.into()))
+        .map_err(map_not_found("Game not found"))?;
+    Ok((StatusCode::CREATED, Json(note.into())))
 }
 
 pub async fn delete_note_for_game_by_id(
