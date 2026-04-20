@@ -111,9 +111,9 @@ export function Raffler() {
 
     try {
       if (isReserved) {
-        await API.games.release(selectedLocation.id, game.id);
+        await API.games.release(game.id);
       } else {
-        await API.games.reserve(selectedLocation.id, game.id);
+        await API.games.reserve(game.id);
       }
     } catch (error) {
       showError(`Failed to ${isReserved ? 'release' : 'reserve'} game`, error);
@@ -138,12 +138,12 @@ export function Raffler() {
 
     try {
       if (isDisabled) {
-        await API.games.enable(selectedLocation.id, game.id);
+        await API.games.enable(game.id);
       } else {
         if (isReserved) {
-          await API.games.release(selectedLocation.id, game.id);
+          await API.games.release(game.id);
         }
-        await API.games.disable(selectedLocation.id, game.id);
+        await API.games.disable(game.id);
       }
     } catch (error) {
       showError(`Failed to ${isDisabled ? 'enable' : 'disable'} game`, error);
@@ -165,7 +165,7 @@ export function Raffler() {
         const location = selectedLocationRef.current;
         if (!location) return;
         try {
-          await API.games.remove(location.id, game.id);
+          await API.games.remove(game.id);
           await fetchGames();
           showSuccess('Game removed successfully');
         } catch (error) {
@@ -180,7 +180,7 @@ export function Raffler() {
     if (!selectedLocation) return;
 
     try {
-      const details = await API.games.get(selectedLocation.id, game.id);
+      const details = await API.games.get(game.id);
       setGameDetails(details);
       gameDetailsModal.open();
     } catch (error) {
@@ -193,7 +193,7 @@ export function Raffler() {
     if (!selectedLocation) return;
 
     try {
-      const stats = await API.games.getStats(selectedLocation.id, game.id);
+      const stats = await API.games.getStats(game.id);
       setGameStats(stats);
       gameStatsModal.open();
     } catch (error) {
@@ -206,7 +206,7 @@ export function Raffler() {
     if (!selectedLocation || !gameDetails) return;
 
     try {
-      const newNote = await API.notes.add(selectedLocation.id, gameDetails.id, noteText);
+      const newNote = await API.notes.add(gameDetails.id, noteText);
       setGameDetails((prev) => {
         if (!prev) return prev;
         return { ...prev, notes: [...(prev.notes || []), newNote] };
@@ -223,7 +223,7 @@ export function Raffler() {
     if (!selectedLocation || !gameDetails) return;
 
     try {
-      await API.notes.remove(selectedLocation.id, gameDetails.id, noteId);
+      await API.notes.remove(gameDetails.id, noteId);
       setGameDetails((prev) => {
         if (!prev) return prev;
         return { ...prev, notes: prev.notes.filter((note) => note.id !== noteId) };

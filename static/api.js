@@ -73,8 +73,8 @@ const createJsonOptions = (method, body = null) => ({
 
 export const API = {
   games: {
-    get: async (locationId, gameId) => {
-      const url = buildUrl(`/locations/${locationId}/games/${gameId}`);
+    get: async (gameId) => {
+      const url = buildUrl(`/games/${gameId}`);
       return request(url, createJsonOptions('GET'));
     },
 
@@ -88,28 +88,28 @@ export const API = {
       return request(url, createJsonOptions('POST'));
     },
 
-    reserve: async (locationId, gameId) => {
-      const url = buildUrl(`/locations/${locationId}/games/${gameId}/reservations`);
+    reserve: async (gameId) => {
+      const url = buildUrl(`/games/${gameId}/reservations`);
       return request(url, createJsonOptions('POST'));
     },
 
-    release: async (locationId, gameId) => {
-      const url = buildUrl(`/locations/${locationId}/games/${gameId}/reservations`);
+    release: async (gameId) => {
+      const url = buildUrl(`/games/${gameId}/reservations`);
       return request(url, createJsonOptions('DELETE'));
     },
 
-    remove: async (locationId, gameId) => {
-      const url = buildUrl(`/locations/${locationId}/games/${gameId}`);
+    remove: async (gameId) => {
+      const url = buildUrl(`/games/${gameId}`);
       return request(url, createJsonOptions('DELETE'));
     },
 
-    enable: async (locationId, gameId) => {
-      const url = buildUrl(`/locations/${locationId}/games/${gameId}/enable`);
+    enable: async (gameId) => {
+      const url = buildUrl(`/games/${gameId}/enable`);
       return request(url, createJsonOptions('POST'));
     },
 
-    disable: async (locationId, gameId) => {
-      const url = buildUrl(`/locations/${locationId}/games/${gameId}/disable`);
+    disable: async (gameId) => {
+      const url = buildUrl(`/games/${gameId}/disable`);
       return request(url, createJsonOptions('POST'));
     },
 
@@ -118,13 +118,13 @@ export const API = {
       return request(url, createJsonOptions('POST', { name, abbreviation }));
     },
 
-    update: async (locationId, gameId, name, abbreviation) => {
-      const url = buildUrl(`/locations/${locationId}/games/${gameId}`);
+    update: async (gameId, name, abbreviation) => {
+      const url = buildUrl(`/games/${gameId}`);
       return request(url, createJsonOptions('PUT', { name, abbreviation }));
     },
 
-    getStats: async (locationId, gameId) => {
-      const url = buildUrl(`/locations/${locationId}/games/${gameId}/reservations`);
+    getStats: async (gameId) => {
+      const url = buildUrl(`/games/${gameId}/reservations`);
       return request(url, createJsonOptions('GET'), STATS_API_TIMEOUT_MS);
     },
   },
@@ -142,13 +142,13 @@ export const API = {
   },
 
   notes: {
-    add: async (locationId, gameId, note) => {
-      const url = buildUrl(`/locations/${locationId}/games/${gameId}/notes`);
+    add: async (gameId, note) => {
+      const url = buildUrl(`/games/${gameId}/notes`);
       return request(url, createJsonOptions('POST', { note }));
     },
 
-    remove: async (locationId, gameId, noteId) => {
-      const url = buildUrl(`/locations/${locationId}/games/${gameId}/notes/${noteId}`);
+    remove: async (gameId, noteId) => {
+      const url = buildUrl(`/games/${gameId}/notes/${noteId}`);
       return request(url, createJsonOptions('DELETE'));
     },
   }

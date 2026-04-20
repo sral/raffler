@@ -145,16 +145,14 @@ pub struct Game {
 }
 
 impl Game {
-    pub async fn find_by_id(pool: &PgPool, id: i64, location_id: i64) -> Result<GameWithNotes> {
+    pub async fn find_by_id(pool: &PgPool, id: i64) -> Result<GameWithNotes> {
         let game = sqlx::query_as!(
             Game,
             r#"SELECT *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!"
                  FROM game
                 WHERE deleted_at IS NULL
-                  AND id = $1
-                  AND location_id = $2"#,
-            id,
-            location_id
+                  AND id = $1"#,
+            id
         )
         .fetch_one(pool)
         .await?;
@@ -246,7 +244,6 @@ impl Game {
 
     pub async fn update_by_id(
         pool: &PgPool,
-        location_id: i64,
         id: i64,
         name: String,
         abbreviation: String,
@@ -257,13 +254,11 @@ impl Game {
                   SET name = $1,
                       abbreviation = $2
                 WHERE id = $3
-                  AND location_id = $4
                   AND deleted_at IS NULL
             RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
             name,
             abbreviation,
             id,
-            location_id,
         )
         .fetch_one(pool)
         .await?;
@@ -271,18 +266,16 @@ impl Game {
         Ok(game)
     }
 
-    pub async fn disable_by_id(pool: &PgPool, location_id: i64, id: i64) -> Result<Game> {
+    pub async fn disable_by_id(pool: &PgPool, id: i64) -> Result<Game> {
         let game = sqlx::query_as!(
             Game,
             r#"UPDATE game
                   SET disabled_at = now()
                 WHERE id = $1
-                  AND location_id = $2
                   AND deleted_at IS NULL
                   AND disabled_at IS NULL
             RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
             id,
-            location_id,
         )
         .fetch_one(pool)
         .await?;
@@ -290,18 +283,16 @@ impl Game {
         Ok(game)
     }
 
-    pub async fn enable_by_id(pool: &PgPool, location_id: i64, id: i64) -> Result<Game> {
+    pub async fn enable_by_id(pool: &PgPool, id: i64) -> Result<Game> {
         let game = sqlx::query_as!(
             Game,
             r#"UPDATE game
                   SET disabled_at = NULL
                 WHERE id = $1
-                  AND location_id = $2
                   AND deleted_at IS NULL
                   AND disabled_at IS NOT NULL
             RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
             id,
-            location_id,
         )
         .fetch_one(pool)
         .await?;
@@ -309,7 +300,7 @@ impl Game {
         Ok(game)
     }
 
-    pub async fn delete_by_id(pool: &PgPool, location_id: i64, id: i64) -> Result<Game> {
+    pub async fn delete_by_id(pool: &PgPool, id: i64) -> Result<Game> {
         let mut tx = pool.begin().await?;
 
         let game = sqlx::query_as!(
@@ -317,11 +308,9 @@ impl Game {
             r#"UPDATE game
                   SET deleted_at = now()
                 WHERE id = $1
-                  AND location_id = $2
                   AND deleted_at IS NULL
             RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
             id,
-            location_id,
         )
         .fetch_one(&mut *tx)
         .await?;
@@ -340,7 +329,7 @@ impl Game {
         Ok(game)
     }
 
-    pub async fn reserve_by_id(pool: &PgPool, location_id: i64, id: i64) -> Result<Game> {
+    pub async fn reserve_by_id(pool: &PgPool, id: i64) -> Result<Game> {
         let mut tx = pool.begin().await?;
 
         sqlx::query_as!(
@@ -348,13 +337,11 @@ impl Game {
             r#"SELECT *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!"
                  FROM game
                 WHERE id = $1
-                  AND location_id = $2
                   AND deleted_at IS NULL
                   AND disabled_at IS NULL
                   AND reserved_at IS NULL
              FOR UPDATE"#,
             id,
-            location_id,
         )
         .fetch_one(&mut *tx)
         .await?;
@@ -364,10 +351,8 @@ impl Game {
             r#"UPDATE game
                   SET reserved_at = now()
                 WHERE id = $1
-                  AND location_id = $2
             RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
             id,
-            location_id,
         )
         .fetch_one(&mut *tx)
         .await?;
@@ -411,28 +396,20 @@ impl Game {
         Ok(game)
     }
 
-    pub async fn release_reservation_by_id(
-        pool: &PgPool,
-        location_id: i64,
-        id: i64,
-    ) -> Result<Game> {
+    pub async fn release_reservation_by_id(pool: &PgPool, id: i64) -> Result<Game> {
         let mut tx = pool.begin().await?;
 
-        // First get the current reserved_at value
         let game = sqlx::query_as!(
             Game,
             r#"SELECT *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!"
                  FROM game
                 WHERE id = $1
-                  AND location_id = $2
                   AND reserved_at IS NOT NULL"#,
             id,
-            location_id,
         )
         .fetch_one(&mut *tx)
         .await?;
 
-        // Insert the reservation record
         let _result = sqlx::query!(
             r#"INSERT INTO reservation (game_id, reserved_at, released_at)
                 VALUES ($1, $2, now())"#,
@@ -442,16 +419,13 @@ impl Game {
         .execute(&mut *tx)
         .await?;
 
-        // Update the game's reserved_at to NULL
         let game = sqlx::query_as!(
             Game,
             r#"UPDATE game
                   SET reserved_at = NULL
                 WHERE id = $1
-                  AND location_id = $2
             RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
             id,
-            location_id,
         )
         .fetch_one(&mut *tx)
         .await?;
@@ -490,13 +464,10 @@ impl ReservationStats {
     pub async fn get_reservations_stats_by_game_id(
         pool: &PgPool,
         game_id: i64,
-        location_id: i64,
     ) -> Result<ReservationStats> {
-        // Verify game exists at location
         sqlx::query!(
-            r#"SELECT id FROM game WHERE id = $1 AND location_id = $2 AND deleted_at IS NULL"#,
-            game_id,
-            location_id
+            r#"SELECT id FROM game WHERE id = $1 AND deleted_at IS NULL"#,
+            game_id
         )
         .fetch_one(pool)
         .await?;
@@ -540,23 +511,16 @@ pub struct Note {
 }
 
 impl Note {
-    pub async fn add_by_game_id(
-        pool: &PgPool,
-        note: String,
-        game_id: i64,
-        location_id: i64,
-    ) -> Result<Note> {
+    pub async fn add_by_game_id(pool: &PgPool, note: String, game_id: i64) -> Result<Note> {
         let note = sqlx::query_as!(
             Note,
             r#"INSERT INTO note (note, game_id)
                     SELECT $1, id FROM game
                      WHERE id = $2
-                       AND location_id = $3
                        AND deleted_at IS NULL
                  RETURNING *"#,
             note,
             game_id,
-            location_id,
         )
         .fetch_one(pool)
         .await?;
@@ -564,12 +528,7 @@ impl Note {
         Ok(note)
     }
 
-    pub async fn delete_by_id(
-        pool: &PgPool,
-        game_id: i64,
-        id: i64,
-        location_id: i64,
-    ) -> Result<Note> {
+    pub async fn delete_by_id(pool: &PgPool, game_id: i64, id: i64) -> Result<Note> {
         let note = sqlx::query_as!(
             Note,
             r#"UPDATE note
@@ -577,11 +536,10 @@ impl Note {
                 WHERE id = $2
                   AND game_id = $1
                   AND deleted_at IS NULL
-                  AND EXISTS (SELECT 1 FROM game WHERE game.id = $1 AND game.location_id = $3 AND game.deleted_at IS NULL)
+                  AND EXISTS (SELECT 1 FROM game WHERE game.id = $1 AND game.deleted_at IS NULL)
             RETURNING *"#,
             game_id,
             id,
-            location_id,
         )
         .fetch_one(pool)
         .await?;

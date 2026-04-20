@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id FROM game WHERE id = $1 AND location_id = $2 AND deleted_at IS NULL",
+  "query": "SELECT id FROM game WHERE id = $1 AND deleted_at IS NULL",
   "describe": {
     "columns": [
       {
@@ -11,7 +11,6 @@
     ],
     "parameters": {
       "Left": [
-        "Int8",
         "Int8"
       ]
     },
@@ -19,5 +18,5 @@
       false
     ]
   },
-  "hash": "849a1a21437b18fce895f523a4e8e2bb2239f181f91685af0063a66cd923c80d"
+  "hash": "9a311cbf461aef38ba2d14c06b4d7033bb3fdbe37212e2df71c329a5866b834f"
 }
