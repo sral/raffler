@@ -9,6 +9,7 @@ export const GameButton = React.memo(function GameButton({
   game,
   onButtonClick,
   onToggleDisabled,
+  onEdit,
   onRemove,
   onShowDetails,
   onShowStats,
@@ -36,23 +37,23 @@ export const GameButton = React.memo(function GameButton({
     }
   }, [isDisabled, onButtonClick]);
 
-  const handleToggleDisabled = React.useCallback((e) => {
-    e.stopPropagation();
+  const handleToggleDisabled = React.useCallback(() => {
     onToggleDisabled();
   }, [onToggleDisabled]);
 
-  const handleRemove = React.useCallback((e) => {
-    e.stopPropagation();
+  const handleEdit = React.useCallback(() => {
+    onEdit();
+  }, [onEdit]);
+
+  const handleRemove = React.useCallback(() => {
     onRemove();
   }, [onRemove]);
 
-  const handleShowDetails = React.useCallback((e) => {
-    e.stopPropagation();
+  const handleShowDetails = React.useCallback(() => {
     onShowDetails();
   }, [onShowDetails]);
 
-  const handleShowStats = React.useCallback((e) => {
-    e.stopPropagation();
+  const handleShowStats = React.useCallback(() => {
     onShowStats();
   }, [onShowStats]);
 
@@ -77,6 +78,9 @@ export const GameButton = React.memo(function GameButton({
         >
           <Dropdown.Item onClick={handleToggleDisabled}>
             {isDisabled ? 'Enable' : 'Disable'}
+          </Dropdown.Item>
+          <Dropdown.Item onClick={handleEdit}>
+            Edit
           </Dropdown.Item>
           <Dropdown.Item onClick={handleRemove}>
             Remove

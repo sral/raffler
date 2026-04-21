@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO reservation (game_id, reserved_at, released_at)\n                        VALUES ($1, $2, now())",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Timestamp"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "26c008fc068eae4068587a36451d88feedf56549fe273e8ffb9057cfafee1c9c"
+}

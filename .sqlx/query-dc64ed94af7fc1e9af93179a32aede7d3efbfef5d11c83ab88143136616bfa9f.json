@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as \"reserved_minutes!\"\n                 FROM game\n                WHERE deleted_at IS NULL\n                  AND id = $1\n                  AND location_id = $2",
+  "query": "INSERT INTO game (location_id, name, abbreviation)\n                        SELECT id, $2, $3 FROM location\n                         WHERE id = $1\n                           AND deleted_at IS NULL\n                RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as \"reserved_minutes!\"",
   "describe": {
     "columns": [
       {
@@ -52,7 +52,8 @@
     "parameters": {
       "Left": [
         "Int8",
-        "Int8"
+        "Text",
+        "Text"
       ]
     },
     "nullable": [
@@ -67,5 +68,5 @@
       null
     ]
   },
-  "hash": "0cccb79fb464ca0bba056a8d3177a9aff8b451090762b89ff6259ead7181b2eb"
+  "hash": "dc64ed94af7fc1e9af93179a32aede7d3efbfef5d11c83ab88143136616bfa9f"
 }

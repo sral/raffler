@@ -83,11 +83,17 @@ The `player` table exists in the schema but is not used in the application.
 
 ### API Routes
 
-REST routes nested under `/v1/locations`. Key patterns:
-- `POST .../games/reservations` — reserve a random unreserved game at a location
-- `POST .../games/{game_id}/reservations` — reserve a specific game
-- `DELETE .../games/{game_id}/reservations` — release a reservation
-- `POST .../games/{game_id}/disable` / `enable` — toggle game availability
+Location-scoped collection routes under `/v1/locations/{id}`:
+- `GET/POST /v1/locations/{id}/games` — list/create games at a location
+- `POST /v1/locations/{id}/games/reservations` — reserve a random unreserved game
+
+Per-game routes are flat under `/v1/games/{game_id}` (location is not part of the path):
+- `GET/PUT/DELETE /v1/games/{game_id}` — fetch/update/delete
+- `POST /v1/games/{game_id}/reservations` — reserve a specific game
+- `DELETE /v1/games/{game_id}/reservations` — release a reservation
+- `GET /v1/games/{game_id}/reservations` — reservation stats
+- `POST /v1/games/{game_id}/disable` / `enable` — toggle availability
+- `POST /v1/games/{game_id}/notes`, `DELETE /v1/games/{game_id}/notes/{note_id}` — notes
 
 ### SQLx Offline Mode
 
@@ -95,4 +101,4 @@ The `.sqlx/` directory contains cached query metadata enabling builds without a 
 
 ## Known Issues
 
-- Some note/reservation endpoints accept `location_id` in the path but don't verify it against the game (see `_location_id` parameters in `src/api.rs`)
+- Significant duplication in `db.rs` (near-identical `disable_by_id`/`enable_by_id`, the `reserved_minutes` SQL expression copy-pasted across queries)

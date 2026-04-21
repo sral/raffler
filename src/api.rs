@@ -57,6 +57,18 @@ fn map_internal(e: sqlx::Error) -> ApiError {
     ApiError::Internal("Internal server error".into())
 }
 
+fn map_db_error(not_found_msg: &str) -> impl FnOnce(db::DbError) -> ApiError {
+    let msg = not_found_msg.to_string();
+    move |e| match e {
+        db::DbError::NotFound => ApiError::NotFound(msg),
+        db::DbError::Disabled => ApiError::Conflict("Game is disabled".into()),
+        db::DbError::Db(e) => {
+            tracing::error!("Database error: {e}");
+            ApiError::Internal("Internal server error".into())
+        }
+    }
+}
+
 // API requests
 #[derive(Debug, Deserialize)]
 pub struct LocationRequest {
@@ -177,24 +189,14 @@ pub async fn get_all_locations(
     Ok(Json(locations.into_iter().map(Into::into).collect()))
 }
 
-pub async fn get_location_by_id(
-    State(pool): State<PgPool>,
-    Path(location_id): Path<i64>,
-) -> Result<Json<LocationResponse>, ApiError> {
-    let location = db::Location::find_by_id(&pool, location_id)
-        .await
-        .map_err(map_not_found("Location not found"))?;
-    Ok(Json(location.into()))
-}
-
 pub async fn post_add_location(
     State(pool): State<PgPool>,
     Json(payload): Json<LocationRequest>,
-) -> Result<Json<LocationResponse>, ApiError> {
+) -> Result<(StatusCode, Json<LocationResponse>), ApiError> {
     let location = db::Location::add(&pool, payload.name)
         .await
         .map_err(map_internal)?;
-    Ok(Json(location.into()))
+    Ok((StatusCode::CREATED, Json(location.into())))
 }
 
 pub async fn delete_location_by_id(
@@ -213,15 +215,15 @@ pub async fn get_games_by_location_id(
 ) -> Result<Json<Vec<GameWithNotesResponse>>, ApiError> {
     let games_with_notes = db::Game::find_by_location_id(&pool, location_id)
         .await
-        .map_err(map_internal)?;
+        .map_err(map_not_found("Location not found"))?;
     Ok(Json(games_with_notes.into_iter().map(Into::into).collect()))
 }
 
-pub async fn get_game_at_location_by_id(
+pub async fn get_game_by_id(
     State(pool): State<PgPool>,
-    Path((location_id, game_id)): Path<(i64, i64)>,
+    Path(game_id): Path<i64>,
 ) -> Result<Json<GameWithNotesResponse>, ApiError> {
-    let game_with_notes = db::Game::find_by_id(&pool, game_id, location_id)
+    let game_with_notes = db::Game::find_by_id(&pool, game_id)
         .await
         .map_err(map_not_found("Game not found"))?;
     Ok(Json(game_with_notes.into()))
@@ -231,27 +233,21 @@ pub async fn post_add_game_at_location(
     State(pool): State<PgPool>,
     Path(location_id): Path<i64>,
     Json(payload): Json<GameRequest>,
-) -> Result<Json<GameResponse>, ApiError> {
+) -> Result<(StatusCode, Json<GameResponse>), ApiError> {
     let game = db::Game::add(&pool, location_id, payload.name, payload.abbreviation)
         .await
-        .map_err(map_internal)?;
-    Ok(Json(game.into()))
+        .map_err(map_not_found("Location not found"))?;
+    Ok((StatusCode::CREATED, Json(game.into())))
 }
 
-pub async fn put_update_game_at_location(
+pub async fn put_update_game(
     State(pool): State<PgPool>,
-    Path((location_id, game_id)): Path<(i64, i64)>,
+    Path(game_id): Path<i64>,
     Json(payload): Json<GameRequest>,
 ) -> Result<Json<GameResponse>, ApiError> {
-    let game = db::Game::update_by_id(
-        &pool,
-        location_id,
-        game_id,
-        payload.name,
-        payload.abbreviation,
-    )
-    .await
-    .map_err(map_conflict("Game not found or deleted"))?;
+    let game = db::Game::update_by_id(&pool, game_id, payload.name, payload.abbreviation)
+        .await
+        .map_err(map_not_found("Game not found"))?;
     Ok(Json(game.into()))
 }
 
@@ -265,84 +261,83 @@ pub async fn post_reserve_random_game_at_location(
     Ok(Json(game.into()))
 }
 
-pub async fn delete_game_reservation_at_location_by_id(
+pub async fn delete_game_reservation_by_id(
     State(pool): State<PgPool>,
-    Path((location_id, game_id)): Path<(i64, i64)>,
+    Path(game_id): Path<i64>,
 ) -> Result<Json<GameResponse>, ApiError> {
-    let game = db::Game::release_reservation_by_id(&pool, location_id, game_id)
+    let game = db::Game::release_reservation_by_id(&pool, game_id)
         .await
-        .map_err(map_conflict("Game not found or not reserved"))?;
+        .map_err(map_db_error("Game not found"))?;
     Ok(Json(game.into()))
 }
 
-pub async fn post_disable_game_at_location_by_id(
+pub async fn post_disable_game_by_id(
     State(pool): State<PgPool>,
-    Path((location_id, game_id)): Path<(i64, i64)>,
+    Path(game_id): Path<i64>,
 ) -> Result<Json<GameResponse>, ApiError> {
-    let game = db::Game::disable_by_id(&pool, location_id, game_id)
+    let game = db::Game::disable_by_id(&pool, game_id)
         .await
-        .map_err(map_conflict("Game not found, deleted, or already disabled"))?;
+        .map_err(map_db_error("Game not found"))?;
     Ok(Json(game.into()))
 }
 
-pub async fn post_enable_game_at_location_by_id(
+pub async fn post_enable_game_by_id(
     State(pool): State<PgPool>,
-    Path((location_id, game_id)): Path<(i64, i64)>,
+    Path(game_id): Path<i64>,
 ) -> Result<Json<GameResponse>, ApiError> {
-    let game = db::Game::enable_by_id(&pool, location_id, game_id)
+    let game = db::Game::enable_by_id(&pool, game_id)
         .await
-        .map_err(map_conflict("Game not found, deleted, or already enabled"))?;
+        .map_err(map_db_error("Game not found"))?;
     Ok(Json(game.into()))
 }
 
-pub async fn delete_game_at_location_by_id(
+pub async fn delete_game_by_id(
     State(pool): State<PgPool>,
-    Path((location_id, game_id)): Path<(i64, i64)>,
+    Path(game_id): Path<i64>,
 ) -> Result<Json<GameResponse>, ApiError> {
-    let game = db::Game::delete_by_id(&pool, location_id, game_id)
+    let game = db::Game::delete_by_id(&pool, game_id)
         .await
         .map_err(map_not_found("Game not found"))?;
     Ok(Json(game.into()))
 }
 
-pub async fn post_add_note_for_game_at_location(
+pub async fn post_add_note_for_game(
     State(pool): State<PgPool>,
-    Path((location_id, game_id)): Path<(i64, i64)>,
+    Path(game_id): Path<i64>,
     Json(payload): Json<NoteRequest>,
-) -> Result<Json<NoteResponse>, ApiError> {
-    let note = db::Note::add_by_game_id(&pool, payload.note, game_id, location_id)
+) -> Result<(StatusCode, Json<NoteResponse>), ApiError> {
+    let note = db::Note::add_by_game_id(&pool, payload.note, game_id)
         .await
-        .map_err(map_conflict("Game not found at this location"))?;
-    Ok(Json(note.into()))
+        .map_err(map_not_found("Game not found"))?;
+    Ok((StatusCode::CREATED, Json(note.into())))
 }
 
 pub async fn delete_note_for_game_by_id(
     State(pool): State<PgPool>,
-    Path((location_id, game_id, note_id)): Path<(i64, i64, i64)>,
+    Path((game_id, note_id)): Path<(i64, i64)>,
 ) -> Result<Json<NoteResponse>, ApiError> {
-    let note = db::Note::delete_by_id(&pool, game_id, note_id, location_id)
+    let note = db::Note::delete_by_id(&pool, game_id, note_id)
         .await
         .map_err(map_not_found("Note not found"))?;
     Ok(Json(note.into()))
 }
 
-pub async fn post_reserve_game_at_location_by_id(
+pub async fn post_reserve_game_by_id(
     State(pool): State<PgPool>,
-    Path((location_id, game_id)): Path<(i64, i64)>,
+    Path(game_id): Path<i64>,
 ) -> Result<Json<GameResponse>, ApiError> {
-    let game = db::Game::reserve_by_id(&pool, location_id, game_id)
+    let game = db::Game::reserve_by_id(&pool, game_id)
         .await
-        .map_err(map_conflict("Game unavailable or already reserved"))?;
+        .map_err(map_db_error("Game not found"))?;
     Ok(Json(game.into()))
 }
 
 pub async fn get_game_reservation_stats(
     State(pool): State<PgPool>,
-    Path((location_id, game_id)): Path<(i64, i64)>,
+    Path(game_id): Path<i64>,
 ) -> Result<Json<ReservationStatsResponse>, ApiError> {
-    let stats =
-        db::ReservationStats::get_reservations_stats_by_game_id(&pool, game_id, location_id)
-            .await
-            .map_err(map_not_found("Game not found at this location"))?;
+    let stats = db::ReservationStats::get_reservations_stats_by_game_id(&pool, game_id)
+        .await
+        .map_err(map_not_found("Game not found"))?;
     Ok(Json(stats.into()))
 }

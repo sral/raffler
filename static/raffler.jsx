@@ -1,5 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
+import { Button, Container } from 'react-bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { API } from './api.js';
 import { useModal } from './hooks/useModal.js';
@@ -12,6 +13,7 @@ import { RandomizeButton } from './components/game/RandomizeButton.jsx';
 import { GameList } from './components/game/GameList.jsx';
 import { AddLocationModal } from './components/modals/AddLocationModal.jsx';
 import { AddGameModal } from './components/modals/AddGameModal.jsx';
+import { EditGameModal } from './components/modals/EditGameModal.jsx';
 import { GameDetailsModal } from './components/modals/GameDetailsModal.jsx';
 import { GameStatsModal } from './components/modals/GameStatsModal.jsx';
 
@@ -20,7 +22,7 @@ import { GameStatsModal } from './components/modals/GameStatsModal.jsx';
  */
 export function Raffler() {
   // Location state
-  const { locations, addLocation } = useLocations();
+  const { locations, error: locationsError, addLocation } = useLocations();
   const [selectedLocation, setSelectedLocation] = React.useState(null);
 
   // Game state
@@ -32,6 +34,17 @@ export function Raffler() {
     updateGameOptimistically,
   } = useGames(selectedLocation?.id);
 
+  // Toast notifications
+  const { showError, showSuccess, toastList } = useToast();
+
+  React.useEffect(() => {
+    if (locationsError) showError('Failed to load locations', { message: locationsError });
+  }, [locationsError, showError]);
+
+  React.useEffect(() => {
+    if (gamesError) showError('Failed to load games', { message: gamesError });
+  }, [gamesError, showError]);
+
   // Ref for selectedLocation so async callbacks always read the current value
   const selectedLocationRef = React.useRef(selectedLocation);
   selectedLocationRef.current = selectedLocation;
@@ -39,15 +52,14 @@ export function Raffler() {
   const [reservedGame, setReservedGame] = React.useState(null);
   const [gameDetails, setGameDetails] = React.useState(null);
   const [gameStats, setGameStats] = React.useState(null);
+  const [editingGame, setEditingGame] = React.useState(null);
 
   // Modals
   const addLocationModal = useModal();
   const addGameModal = useModal();
+  const editGameModal = useModal();
   const gameDetailsModal = useModal();
   const gameStatsModal = useModal();
-
-  // Toast notifications
-  const { showError, showSuccess, toastList } = useToast();
 
   // Confirmation dialog
   const { showConfirmation, confirmationDialog } = useConfirmation();
@@ -88,6 +100,25 @@ export function Raffler() {
     }
   }, [selectedLocation, fetchGames, showSuccess, showError]);
 
+  // Handler: Open edit modal for a game
+  const handleEditGame = React.useCallback((game) => {
+    setEditingGame(game);
+    editGameModal.open();
+  }, [editGameModal]);
+
+  // Handler: Submit game edit
+  const handleUpdateGame = React.useCallback(async (name, abbreviation) => {
+    if (!editingGame) return;
+    try {
+      await API.games.update(editingGame.id, name, abbreviation);
+      await fetchGames();
+      showSuccess('Game updated successfully');
+    } catch (error) {
+      showError('Failed to update game', error);
+      throw error;
+    }
+  }, [editingGame, fetchGames, showSuccess, showError]);
+
   // Handler: Reserve/Release game
   const handleGameClick = React.useCallback(async (game) => {
     if (!selectedLocation) return;
@@ -111,9 +142,9 @@ export function Raffler() {
 
     try {
       if (isReserved) {
-        await API.games.release(selectedLocation.id, game.id);
+        await API.games.release(game.id);
       } else {
-        await API.games.reserve(selectedLocation.id, game.id);
+        await API.games.reserve(game.id);
       }
     } catch (error) {
       showError(`Failed to ${isReserved ? 'release' : 'reserve'} game`, error);
@@ -127,28 +158,22 @@ export function Raffler() {
     if (!selectedLocation) return;
 
     const isDisabled = Boolean(game.disabled_at);
-    const isReserved = Boolean(game.reserved_at);
 
-    // Optimistic update
     updateGameOptimistically(game.id, {
       disabled_at: isDisabled ? null : new Date().toISOString(),
-      reserved_at: isDisabled ? game.reserved_at : null, // Release if disabling
+      reserved_at: isDisabled ? game.reserved_at : null,
       reserved_minutes: isDisabled ? game.reserved_minutes : null,
     });
 
     try {
       if (isDisabled) {
-        await API.games.enable(selectedLocation.id, game.id);
+        await API.games.enable(game.id);
       } else {
-        if (isReserved) {
-          await API.games.release(selectedLocation.id, game.id);
-        }
-        await API.games.disable(selectedLocation.id, game.id);
+        await API.games.disable(game.id);
       }
     } catch (error) {
       showError(`Failed to ${isDisabled ? 'enable' : 'disable'} game`, error);
     }
-    // Always sync with server — correctly handles partial failures
     await fetchGames();
   }, [selectedLocation, updateGameOptimistically, fetchGames, showError]);
 
@@ -165,7 +190,7 @@ export function Raffler() {
         const location = selectedLocationRef.current;
         if (!location) return;
         try {
-          await API.games.remove(location.id, game.id);
+          await API.games.remove(game.id);
           await fetchGames();
           showSuccess('Game removed successfully');
         } catch (error) {
@@ -180,7 +205,7 @@ export function Raffler() {
     if (!selectedLocation) return;
 
     try {
-      const details = await API.games.get(selectedLocation.id, game.id);
+      const details = await API.games.get(game.id);
       setGameDetails(details);
       gameDetailsModal.open();
     } catch (error) {
@@ -193,7 +218,7 @@ export function Raffler() {
     if (!selectedLocation) return;
 
     try {
-      const stats = await API.games.getStats(selectedLocation.id, game.id);
+      const stats = await API.games.getStats(game.id);
       setGameStats(stats);
       gameStatsModal.open();
     } catch (error) {
@@ -206,7 +231,7 @@ export function Raffler() {
     if (!selectedLocation || !gameDetails) return;
 
     try {
-      const newNote = await API.notes.add(selectedLocation.id, gameDetails.id, noteText);
+      const newNote = await API.notes.add(gameDetails.id, noteText);
       setGameDetails((prev) => {
         if (!prev) return prev;
         return { ...prev, notes: [...(prev.notes || []), newNote] };
@@ -223,7 +248,7 @@ export function Raffler() {
     if (!selectedLocation || !gameDetails) return;
 
     try {
-      await API.notes.remove(selectedLocation.id, gameDetails.id, noteId);
+      await API.notes.remove(gameDetails.id, noteId);
       setGameDetails((prev) => {
         if (!prev) return prev;
         return { ...prev, notes: prev.notes.filter((note) => note.id !== noteId) };
@@ -281,26 +306,42 @@ export function Raffler() {
         />
       </header>
 
-      <div className={selectedLocation ? 'visible' : 'invisible'}>
-        <div className="text-center my-2">
-          <RandomizeButton onClick={handleRandomize} disabled={gamesLoading} />
-        </div>
-        <div className="fixed-height-selected-game my-2">
-          <h3>{reservedGame ? reservedGame.name : ''}</h3>
-        </div>
-        <div>
-          <GameList
-            games={games}
-            loading={gamesLoading}
-            onGameClick={handleGameClick}
-            onToggleDisabled={handleToggleDisabled}
-            onRemove={handleRemoveGame}
-            onShowDetails={handleShowDetails}
-            onShowStats={handleShowStats}
-            onAddGame={addGameModal.open}
-          />
-        </div>
-      </div>
+      {selectedLocation ? (
+        <>
+          <div className="text-center my-2">
+            <RandomizeButton onClick={handleRandomize} disabled={gamesLoading} />
+          </div>
+          <div className="fixed-height-selected-game my-2">
+            <h3>{reservedGame ? reservedGame.name : ''}</h3>
+          </div>
+          <div>
+            <GameList
+              games={games}
+              loading={gamesLoading}
+              onGameClick={handleGameClick}
+              onToggleDisabled={handleToggleDisabled}
+              onEdit={handleEditGame}
+              onRemove={handleRemoveGame}
+              onShowDetails={handleShowDetails}
+              onShowStats={handleShowStats}
+              onAddGame={addGameModal.open}
+            />
+          </div>
+        </>
+      ) : locations.length === 0 ? (
+        <Container className="text-center mt-5">
+          <p className="text-muted">No locations yet. Add your first location to get started.</p>
+          <Button
+            variant="outline-secondary"
+            className="mx-1 my-2"
+            style={{ border: '2px dashed #ccc', color: '#999' }}
+            onClick={addLocationModal.open}
+            aria-label="Add location"
+          >
+            + Add location
+          </Button>
+        </Container>
+      ) : null}
 
       <AddLocationModal
         show={addLocationModal.show}
@@ -312,6 +353,14 @@ export function Raffler() {
         show={addGameModal.show}
         onHide={addGameModal.close}
         onAddGame={handleAddGame}
+      />
+
+      <EditGameModal
+        show={editGameModal.show}
+        onHide={editGameModal.close}
+        onExited={() => setEditingGame(null)}
+        game={editingGame}
+        onEditGame={handleUpdateGame}
       />
 
       <GameDetailsModal

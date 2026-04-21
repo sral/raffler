@@ -54,24 +54,11 @@ async fn main() {
             {
                 Ok(games) => {
                     for game in games {
-                        match db::Game::release_reservation_by_id(
-                            &pool_clone,
-                            game.location_id,
-                            game.id,
-                        )
-                        .await
-                        {
-                            Ok(_) => tracing::info!(
-                                "Released game {} at location {}",
-                                game.id,
-                                game.location_id
-                            ),
-                            Err(e) => tracing::error!(
-                                "Failed to release game {} at location {}: {}",
-                                game.id,
-                                game.location_id,
-                                e
-                            ),
+                        match db::Game::release_reservation_by_id(&pool_clone, game.id).await {
+                            Ok(_) => tracing::info!("Released game {}", game.id),
+                            Err(e) => {
+                                tracing::error!("Failed to release game {}: {:?}", game.id, e)
+                            }
                         }
                     }
                 }
@@ -93,44 +80,41 @@ async fn main() {
             "/v1/locations",
             get(api::get_all_locations).post(api::post_add_location),
         )
-        .route(
-            "/v1/locations/{id}",
-            get(api::get_location_by_id).delete(api::delete_location_by_id),
-        )
+        .route("/v1/locations/{id}", delete(api::delete_location_by_id))
         .route(
             "/v1/locations/{location_id}/games",
             get(api::get_games_by_location_id).post(api::post_add_game_at_location),
-        )
-        .route(
-            "/v1/locations/{location_id}/games/{game_id}",
-            get(api::get_game_at_location_by_id)
-                .put(api::put_update_game_at_location)
-                .delete(api::delete_game_at_location_by_id),
-        )
-        .route(
-            "/v1/locations/{location_id}/games/{game_id}/disable",
-            post(api::post_disable_game_at_location_by_id),
         )
         .route(
             "/v1/locations/{location_id}/games/reservations",
             post(api::post_reserve_random_game_at_location),
         )
         .route(
-            "/v1/locations/{location_id}/games/{game_id}/reservations",
+            "/v1/games/{game_id}",
+            get(api::get_game_by_id)
+                .put(api::put_update_game)
+                .delete(api::delete_game_by_id),
+        )
+        .route(
+            "/v1/games/{game_id}/disable",
+            post(api::post_disable_game_by_id),
+        )
+        .route(
+            "/v1/games/{game_id}/enable",
+            post(api::post_enable_game_by_id),
+        )
+        .route(
+            "/v1/games/{game_id}/reservations",
             get(api::get_game_reservation_stats)
-                .post(api::post_reserve_game_at_location_by_id)
-                .delete(api::delete_game_reservation_at_location_by_id),
+                .post(api::post_reserve_game_by_id)
+                .delete(api::delete_game_reservation_by_id),
         )
         .route(
-            "/v1/locations/{location_id}/games/{game_id}/enable",
-            post(api::post_enable_game_at_location_by_id),
+            "/v1/games/{game_id}/notes",
+            post(api::post_add_note_for_game),
         )
         .route(
-            "/v1/locations/{location_id}/games/{game_id}/notes",
-            post(api::post_add_note_for_game_at_location),
-        )
-        .route(
-            "/v1/locations/{location_id}/games/{game_id}/notes/{note_id}",
+            "/v1/games/{game_id}/notes/{note_id}",
             delete(api::delete_note_for_game_by_id),
         )
         .fallback_service(serve_dir)

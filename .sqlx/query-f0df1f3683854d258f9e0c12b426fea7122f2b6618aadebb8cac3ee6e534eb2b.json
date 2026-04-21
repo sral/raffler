@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "UPDATE game\n                  SET disabled_at = NULL\n                WHERE id = $1\n                  AND location_id = $2\n                  AND deleted_at IS NULL\n                  AND disabled_at IS NOT NULL\n            RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as \"reserved_minutes!\"",
+  "query": "SELECT *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as \"reserved_minutes!\"\n                 FROM game\n                WHERE deleted_at IS NULL\n                  AND reserved_at IS NOT NULL\n                  AND EXTRACT(EPOCH FROM (now() - reserved_at)) / 60 > $1::int\n                ORDER BY reserved_at ASC",
   "describe": {
     "columns": [
       {
@@ -51,8 +51,7 @@
     ],
     "parameters": {
       "Left": [
-        "Int8",
-        "Int8"
+        "Int4"
       ]
     },
     "nullable": [
@@ -67,5 +66,5 @@
       null
     ]
   },
-  "hash": "694a2ab85a514e21121d6cd251d043db38b20f8d8a3cc504b8e5ae4d63965392"
+  "hash": "f0df1f3683854d258f9e0c12b426fea7122f2b6618aadebb8cac3ee6e534eb2b"
 }
