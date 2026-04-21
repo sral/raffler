@@ -44,21 +44,6 @@ impl Location {
         Ok(locations)
     }
 
-    pub async fn find_by_id(pool: &PgPool, id: i64) -> Result<Location> {
-        let location = sqlx::query_as!(
-            Location,
-            r#"SELECT *
-                 FROM location
-                WHERE deleted_at IS NULL
-                  AND id = $1"#,
-            id
-        )
-        .fetch_one(pool)
-        .await?;
-
-        Ok(location)
-    }
-
     pub async fn add(pool: &PgPool, name: String) -> Result<Location> {
         let location = sqlx::query_as!(
             Location,

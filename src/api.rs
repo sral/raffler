@@ -189,16 +189,6 @@ pub async fn get_all_locations(
     Ok(Json(locations.into_iter().map(Into::into).collect()))
 }
 
-pub async fn get_location_by_id(
-    State(pool): State<PgPool>,
-    Path(location_id): Path<i64>,
-) -> Result<Json<LocationResponse>, ApiError> {
-    let location = db::Location::find_by_id(&pool, location_id)
-        .await
-        .map_err(map_not_found("Location not found"))?;
-    Ok(Json(location.into()))
-}
-
 pub async fn post_add_location(
     State(pool): State<PgPool>,
     Json(payload): Json<LocationRequest>,

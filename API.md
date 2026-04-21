@@ -42,13 +42,6 @@ Create a location.
 
 **Response** `201` — `{id, name}`
 
-### `GET /v1/locations/{location_id}`
-
-Fetch a single location.
-
-**Response** `200` — `{id, name}`
-**Errors** — `404 Location not found`
-
 ### `DELETE /v1/locations/{location_id}`
 
 Soft-delete the location. Cascade soft-deletes its games and their notes.
