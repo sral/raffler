@@ -57,6 +57,18 @@ fn map_internal(e: sqlx::Error) -> ApiError {
     ApiError::Internal("Internal server error".into())
 }
 
+fn map_db_error(not_found_msg: &str) -> impl FnOnce(db::DbError) -> ApiError {
+    let msg = not_found_msg.to_string();
+    move |e| match e {
+        db::DbError::NotFound => ApiError::NotFound(msg),
+        db::DbError::Disabled => ApiError::Conflict("Game is disabled".into()),
+        db::DbError::Db(e) => {
+            tracing::error!("Database error: {e}");
+            ApiError::Internal("Internal server error".into())
+        }
+    }
+}
+
 // API requests
 #[derive(Debug, Deserialize)]
 pub struct LocationRequest {
@@ -265,7 +277,7 @@ pub async fn delete_game_reservation_by_id(
 ) -> Result<Json<GameResponse>, ApiError> {
     let game = db::Game::release_reservation_by_id(&pool, game_id)
         .await
-        .map_err(map_conflict("Game not found or not reserved"))?;
+        .map_err(map_db_error("Game not found"))?;
     Ok(Json(game.into()))
 }
 
@@ -275,7 +287,7 @@ pub async fn post_disable_game_by_id(
 ) -> Result<Json<GameResponse>, ApiError> {
     let game = db::Game::disable_by_id(&pool, game_id)
         .await
-        .map_err(map_conflict("Game not found, deleted, or already disabled"))?;
+        .map_err(map_db_error("Game not found"))?;
     Ok(Json(game.into()))
 }
 
@@ -285,7 +297,7 @@ pub async fn post_enable_game_by_id(
 ) -> Result<Json<GameResponse>, ApiError> {
     let game = db::Game::enable_by_id(&pool, game_id)
         .await
-        .map_err(map_conflict("Game not found, deleted, or already enabled"))?;
+        .map_err(map_db_error("Game not found"))?;
     Ok(Json(game.into()))
 }
 
@@ -326,7 +338,7 @@ pub async fn post_reserve_game_by_id(
 ) -> Result<Json<GameResponse>, ApiError> {
     let game = db::Game::reserve_by_id(&pool, game_id)
         .await
-        .map_err(map_conflict("Game unavailable or already reserved"))?;
+        .map_err(map_db_error("Game not found"))?;
     Ok(Json(game.into()))
 }
 

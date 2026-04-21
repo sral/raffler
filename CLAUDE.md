@@ -101,5 +101,4 @@ The `.sqlx/` directory contains cached query metadata enabling builds without a 
 
 ## Known Issues
 
-- Duplicating a mutation (e.g. reserving an already-reserved game) returns `409 Conflict` rather than being idempotent
 - Significant duplication in `db.rs` (near-identical `disable_by_id`/`enable_by_id`, the `reserved_minutes` SQL expression copy-pasted across queries)

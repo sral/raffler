@@ -7,6 +7,22 @@ use sqlx::PgPool;
 
 type Result<T> = std::result::Result<T, sqlx::Error>;
 
+#[derive(Debug)]
+pub enum DbError {
+    NotFound,
+    Disabled,
+    Db(sqlx::Error),
+}
+
+impl From<sqlx::Error> for DbError {
+    fn from(e: sqlx::Error) -> Self {
+        match e {
+            sqlx::Error::RowNotFound => DbError::NotFound,
+            other => DbError::Db(other),
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct Location {
     pub id: i64,
@@ -268,37 +284,85 @@ impl Game {
         Ok(game)
     }
 
-    pub async fn disable_by_id(pool: &PgPool, id: i64) -> Result<Game> {
+    pub async fn disable_by_id(pool: &PgPool, id: i64) -> std::result::Result<Game, DbError> {
+        let mut tx = pool.begin().await?;
+
+        let game = sqlx::query_as!(
+            Game,
+            r#"SELECT *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!"
+                 FROM game
+                WHERE id = $1
+                  AND deleted_at IS NULL
+             FOR UPDATE"#,
+            id,
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+
+        if game.disabled_at.is_some() {
+            tx.commit().await?;
+            return Ok(game);
+        }
+
+        if let Some(reserved_at) = game.reserved_at {
+            sqlx::query!(
+                r#"INSERT INTO reservation (game_id, reserved_at, released_at)
+                        VALUES ($1, $2, now())"#,
+                id,
+                reserved_at,
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
+
         let game = sqlx::query_as!(
             Game,
             r#"UPDATE game
-                  SET disabled_at = now()
+                  SET disabled_at = now(),
+                      reserved_at = NULL
                 WHERE id = $1
-                  AND deleted_at IS NULL
-                  AND disabled_at IS NULL
             RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
             id,
         )
-        .fetch_one(pool)
+        .fetch_one(&mut *tx)
         .await?;
 
+        tx.commit().await?;
         Ok(game)
     }
 
-    pub async fn enable_by_id(pool: &PgPool, id: i64) -> Result<Game> {
+    pub async fn enable_by_id(pool: &PgPool, id: i64) -> std::result::Result<Game, DbError> {
+        let mut tx = pool.begin().await?;
+
+        let game = sqlx::query_as!(
+            Game,
+            r#"SELECT *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!"
+                 FROM game
+                WHERE id = $1
+                  AND deleted_at IS NULL
+             FOR UPDATE"#,
+            id,
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+
+        if game.disabled_at.is_none() {
+            tx.commit().await?;
+            return Ok(game);
+        }
+
         let game = sqlx::query_as!(
             Game,
             r#"UPDATE game
                   SET disabled_at = NULL
                 WHERE id = $1
-                  AND deleted_at IS NULL
-                  AND disabled_at IS NOT NULL
             RETURNING *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!""#,
             id,
         )
-        .fetch_one(pool)
+        .fetch_one(&mut *tx)
         .await?;
 
+        tx.commit().await?;
         Ok(game)
     }
 
@@ -331,22 +395,28 @@ impl Game {
         Ok(game)
     }
 
-    pub async fn reserve_by_id(pool: &PgPool, id: i64) -> Result<Game> {
+    pub async fn reserve_by_id(pool: &PgPool, id: i64) -> std::result::Result<Game, DbError> {
         let mut tx = pool.begin().await?;
 
-        sqlx::query_as!(
+        let game = sqlx::query_as!(
             Game,
             r#"SELECT *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!"
                  FROM game
                 WHERE id = $1
                   AND deleted_at IS NULL
-                  AND disabled_at IS NULL
-                  AND reserved_at IS NULL
              FOR UPDATE"#,
             id,
         )
         .fetch_one(&mut *tx)
         .await?;
+
+        if game.disabled_at.is_some() {
+            return Err(DbError::Disabled);
+        }
+        if game.reserved_at.is_some() {
+            tx.commit().await?;
+            return Ok(game);
+        }
 
         let game = sqlx::query_as!(
             Game,
@@ -398,7 +468,10 @@ impl Game {
         Ok(game)
     }
 
-    pub async fn release_reservation_by_id(pool: &PgPool, id: i64) -> Result<Game> {
+    pub async fn release_reservation_by_id(
+        pool: &PgPool,
+        id: i64,
+    ) -> std::result::Result<Game, DbError> {
         let mut tx = pool.begin().await?;
 
         let game = sqlx::query_as!(
@@ -406,17 +479,23 @@ impl Game {
             r#"SELECT *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!"
                  FROM game
                 WHERE id = $1
-                  AND reserved_at IS NOT NULL"#,
+                  AND deleted_at IS NULL
+             FOR UPDATE"#,
             id,
         )
         .fetch_one(&mut *tx)
         .await?;
 
-        let _result = sqlx::query!(
+        let Some(reserved_at) = game.reserved_at else {
+            tx.commit().await?;
+            return Ok(game);
+        };
+
+        sqlx::query!(
             r#"INSERT INTO reservation (game_id, reserved_at, released_at)
-                VALUES ($1, $2, now())"#,
+                    VALUES ($1, $2, now())"#,
             id,
-            game.reserved_at,
+            reserved_at,
         )
         .execute(&mut *tx)
         .await?;

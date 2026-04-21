@@ -57,7 +57,7 @@ async fn main() {
                         match db::Game::release_reservation_by_id(&pool_clone, game.id).await {
                             Ok(_) => tracing::info!("Released game {}", game.id),
                             Err(e) => {
-                                tracing::error!("Failed to release game {}: {}", game.id, e)
+                                tracing::error!("Failed to release game {}: {:?}", game.id, e)
                             }
                         }
                     }

@@ -127,12 +127,10 @@ export function Raffler() {
     if (!selectedLocation) return;
 
     const isDisabled = Boolean(game.disabled_at);
-    const isReserved = Boolean(game.reserved_at);
 
-    // Optimistic update
     updateGameOptimistically(game.id, {
       disabled_at: isDisabled ? null : new Date().toISOString(),
-      reserved_at: isDisabled ? game.reserved_at : null, // Release if disabling
+      reserved_at: isDisabled ? game.reserved_at : null,
       reserved_minutes: isDisabled ? game.reserved_minutes : null,
     });
 
@@ -140,15 +138,11 @@ export function Raffler() {
       if (isDisabled) {
         await API.games.enable(game.id);
       } else {
-        if (isReserved) {
-          await API.games.release(game.id);
-        }
         await API.games.disable(game.id);
       }
     } catch (error) {
       showError(`Failed to ${isDisabled ? 'enable' : 'disable'} game`, error);
     }
-    // Always sync with server — correctly handles partial failures
     await fetchGames();
   }, [selectedLocation, updateGameOptimistically, fetchGames, showError]);
 
