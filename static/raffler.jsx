@@ -13,6 +13,7 @@ import { RandomizeButton } from './components/game/RandomizeButton.jsx';
 import { GameList } from './components/game/GameList.jsx';
 import { AddLocationModal } from './components/modals/AddLocationModal.jsx';
 import { AddGameModal } from './components/modals/AddGameModal.jsx';
+import { EditGameModal } from './components/modals/EditGameModal.jsx';
 import { GameDetailsModal } from './components/modals/GameDetailsModal.jsx';
 import { GameStatsModal } from './components/modals/GameStatsModal.jsx';
 
@@ -51,10 +52,12 @@ export function Raffler() {
   const [reservedGame, setReservedGame] = React.useState(null);
   const [gameDetails, setGameDetails] = React.useState(null);
   const [gameStats, setGameStats] = React.useState(null);
+  const [editingGame, setEditingGame] = React.useState(null);
 
   // Modals
   const addLocationModal = useModal();
   const addGameModal = useModal();
+  const editGameModal = useModal();
   const gameDetailsModal = useModal();
   const gameStatsModal = useModal();
 
@@ -96,6 +99,25 @@ export function Raffler() {
       throw error;
     }
   }, [selectedLocation, fetchGames, showSuccess, showError]);
+
+  // Handler: Open edit modal for a game
+  const handleEditGame = React.useCallback((game) => {
+    setEditingGame(game);
+    editGameModal.open();
+  }, [editGameModal]);
+
+  // Handler: Submit game edit
+  const handleUpdateGame = React.useCallback(async (name, abbreviation) => {
+    if (!editingGame) return;
+    try {
+      await API.games.update(editingGame.id, name, abbreviation);
+      await fetchGames();
+      showSuccess('Game updated successfully');
+    } catch (error) {
+      showError('Failed to update game', error);
+      throw error;
+    }
+  }, [editingGame, fetchGames, showSuccess, showError]);
 
   // Handler: Reserve/Release game
   const handleGameClick = React.useCallback(async (game) => {
@@ -298,6 +320,7 @@ export function Raffler() {
               loading={gamesLoading}
               onGameClick={handleGameClick}
               onToggleDisabled={handleToggleDisabled}
+              onEdit={handleEditGame}
               onRemove={handleRemoveGame}
               onShowDetails={handleShowDetails}
               onShowStats={handleShowStats}
@@ -330,6 +353,14 @@ export function Raffler() {
         show={addGameModal.show}
         onHide={addGameModal.close}
         onAddGame={handleAddGame}
+      />
+
+      <EditGameModal
+        show={editGameModal.show}
+        onHide={editGameModal.close}
+        onExited={() => setEditingGame(null)}
+        game={editingGame}
+        onEditGame={handleUpdateGame}
       />
 
       <GameDetailsModal

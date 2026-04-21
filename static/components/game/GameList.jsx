@@ -11,6 +11,7 @@ export const GameList = React.memo(function GameList({
   loading,
   onGameClick,
   onToggleDisabled,
+  onEdit,
   onRemove,
   onShowDetails,
   onShowStats,
@@ -45,6 +46,7 @@ export const GameList = React.memo(function GameList({
           game={game}
           onButtonClick={() => onGameClick(game)}
           onToggleDisabled={() => onToggleDisabled(game)}
+          onEdit={() => onEdit(game)}
           onRemove={() => onRemove(game)}
           onShowDetails={() => onShowDetails(game)}
           onShowStats={() => onShowStats(game)}
