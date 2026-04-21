@@ -79,6 +79,7 @@ List the games at a location (with their notes).
 }
 ```
 `reserved_minutes` is computed from `reserved_at`; `0` when not reserved.
+**Errors** — `404 Location not found`
 
 ### `POST /v1/locations/{location_id}/games`
 

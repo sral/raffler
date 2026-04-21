@@ -225,7 +225,7 @@ pub async fn get_games_by_location_id(
 ) -> Result<Json<Vec<GameWithNotesResponse>>, ApiError> {
     let games_with_notes = db::Game::find_by_location_id(&pool, location_id)
         .await
-        .map_err(map_internal)?;
+        .map_err(map_not_found("Location not found"))?;
     Ok(Json(games_with_notes.into_iter().map(Into::into).collect()))
 }
 

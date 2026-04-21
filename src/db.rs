@@ -205,6 +205,12 @@ impl Game {
         .await?;
 
         if games.is_empty() {
+            sqlx::query!(
+                r#"SELECT id FROM location WHERE id = $1 AND deleted_at IS NULL"#,
+                id
+            )
+            .fetch_one(pool)
+            .await?;
             return Ok(Vec::new());
         }
 
