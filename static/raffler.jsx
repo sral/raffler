@@ -1,5 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
+import { Button, Container } from 'react-bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { API } from './api.js';
 import { useModal } from './hooks/useModal.js';
@@ -20,7 +21,7 @@ import { GameStatsModal } from './components/modals/GameStatsModal.jsx';
  */
 export function Raffler() {
   // Location state
-  const { locations, addLocation } = useLocations();
+  const { locations, error: locationsError, addLocation } = useLocations();
   const [selectedLocation, setSelectedLocation] = React.useState(null);
 
   // Game state
@@ -31,6 +32,17 @@ export function Raffler() {
     fetchGames,
     updateGameOptimistically,
   } = useGames(selectedLocation?.id);
+
+  // Toast notifications
+  const { showError, showSuccess, toastList } = useToast();
+
+  React.useEffect(() => {
+    if (locationsError) showError('Failed to load locations', { message: locationsError });
+  }, [locationsError, showError]);
+
+  React.useEffect(() => {
+    if (gamesError) showError('Failed to load games', { message: gamesError });
+  }, [gamesError, showError]);
 
   // Ref for selectedLocation so async callbacks always read the current value
   const selectedLocationRef = React.useRef(selectedLocation);
@@ -45,9 +57,6 @@ export function Raffler() {
   const addGameModal = useModal();
   const gameDetailsModal = useModal();
   const gameStatsModal = useModal();
-
-  // Toast notifications
-  const { showError, showSuccess, toastList } = useToast();
 
   // Confirmation dialog
   const { showConfirmation, confirmationDialog } = useConfirmation();
@@ -275,26 +284,41 @@ export function Raffler() {
         />
       </header>
 
-      <div className={selectedLocation ? 'visible' : 'invisible'}>
-        <div className="text-center my-2">
-          <RandomizeButton onClick={handleRandomize} disabled={gamesLoading} />
-        </div>
-        <div className="fixed-height-selected-game my-2">
-          <h3>{reservedGame ? reservedGame.name : ''}</h3>
-        </div>
-        <div>
-          <GameList
-            games={games}
-            loading={gamesLoading}
-            onGameClick={handleGameClick}
-            onToggleDisabled={handleToggleDisabled}
-            onRemove={handleRemoveGame}
-            onShowDetails={handleShowDetails}
-            onShowStats={handleShowStats}
-            onAddGame={addGameModal.open}
-          />
-        </div>
-      </div>
+      {selectedLocation ? (
+        <>
+          <div className="text-center my-2">
+            <RandomizeButton onClick={handleRandomize} disabled={gamesLoading} />
+          </div>
+          <div className="fixed-height-selected-game my-2">
+            <h3>{reservedGame ? reservedGame.name : ''}</h3>
+          </div>
+          <div>
+            <GameList
+              games={games}
+              loading={gamesLoading}
+              onGameClick={handleGameClick}
+              onToggleDisabled={handleToggleDisabled}
+              onRemove={handleRemoveGame}
+              onShowDetails={handleShowDetails}
+              onShowStats={handleShowStats}
+              onAddGame={addGameModal.open}
+            />
+          </div>
+        </>
+      ) : locations.length === 0 ? (
+        <Container className="text-center mt-5">
+          <p className="text-muted">No locations yet. Add your first location to get started.</p>
+          <Button
+            variant="outline-secondary"
+            className="mx-1 my-2"
+            style={{ border: '2px dashed #ccc', color: '#999' }}
+            onClick={addLocationModal.open}
+            aria-label="Add location"
+          >
+            + Add location
+          </Button>
+        </Container>
+      ) : null}
 
       <AddLocationModal
         show={addLocationModal.show}
