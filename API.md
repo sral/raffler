@@ -101,7 +101,7 @@ Update a game's name and abbreviation.
 
 **Request** — `{"name": string, "abbreviation": string}`
 **Response** `200` — `{id, name, abbreviation}`
-**Errors** — `409 Game not found or deleted`
+**Errors** — `404 Game not found`
 
 ### `DELETE /v1/games/{game_id}`
 

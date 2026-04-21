@@ -257,7 +257,7 @@ pub async fn put_update_game(
 ) -> Result<Json<GameResponse>, ApiError> {
     let game = db::Game::update_by_id(&pool, game_id, payload.name, payload.abbreviation)
         .await
-        .map_err(map_conflict("Game not found or deleted"))?;
+        .map_err(map_not_found("Game not found"))?;
     Ok(Json(game.into()))
 }
 
