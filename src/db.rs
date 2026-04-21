@@ -520,7 +520,8 @@ impl Game {
             Game,
             r#"SELECT *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as "reserved_minutes!"
                  FROM game
-                WHERE reserved_at IS NOT NULL
+                WHERE deleted_at IS NULL
+                  AND reserved_at IS NOT NULL
                   AND EXTRACT(EPOCH FROM (now() - reserved_at)) / 60 > $1::int
                 ORDER BY reserved_at ASC"#,
             minutes

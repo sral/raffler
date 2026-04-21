@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as \"reserved_minutes!\"\n                 FROM game\n                WHERE reserved_at IS NOT NULL\n                  AND EXTRACT(EPOCH FROM (now() - reserved_at)) / 60 > $1::int\n                ORDER BY reserved_at ASC",
+  "query": "SELECT *, COALESCE((EXTRACT(EPOCH FROM (now() - reserved_at)) / 60)::int, 0) as \"reserved_minutes!\"\n                 FROM game\n                WHERE deleted_at IS NULL\n                  AND reserved_at IS NOT NULL\n                  AND EXTRACT(EPOCH FROM (now() - reserved_at)) / 60 > $1::int\n                ORDER BY reserved_at ASC",
   "describe": {
     "columns": [
       {
@@ -66,5 +66,5 @@
       null
     ]
   },
-  "hash": "71539e9b22f8d6e2b9683b8e0dbd10b96d626dc6c189b265bae2a61d75e12d56"
+  "hash": "f0df1f3683854d258f9e0c12b426fea7122f2b6618aadebb8cac3ee6e534eb2b"
 }
