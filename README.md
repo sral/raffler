@@ -71,35 +71,13 @@ $ cargo fmt -- --check
 
 #### API
 
-Useful commands for testing the API locally.
+See [API.md](API.md) for the full endpoint reference.
 
-##### Locations
+Quick examples for local testing:
 ```
 $ curl http://localhost:8000/v1/locations
 $ curl -X POST http://localhost:8000/v1/locations -H 'Content-Type: application/json' -d '{"name":"Spola Tilten"}'
-$ curl -X DELETE http://localhost:8000/v1/locations/1
-```
-
-##### Games
-```
-$ curl http://localhost:8000/v1/locations/1/games
-$ curl http://localhost:8000/v1/locations/1/games/1
 $ curl -X POST http://localhost:8000/v1/locations/1/games -H 'Content-Type: application/json' -d '{"name":"Attack From Mars", "abbreviation": "AFM"}'
-$ curl -X PUT http://localhost:8000/v1/locations/1/games/1 -H 'Content-Type: application/json' -d '{"name":"Attack From Lars", "abbreviation": "AFL"}'
-$ curl -X DELETE http://localhost:8000/v1/locations/1/games/1
-$ curl -X POST http://localhost:8000/v1/locations/1/games/1/disable
-$ curl -X POST http://localhost:8000/v1/locations/1/games/1/enable
-```
-
-##### Reservations
-```
-$ curl -X POST http://localhost:8000/v1/locations/1/games/1/reservations
-$ curl -X POST http://localhost:8000/v1/locations/1/games/reservations
-$ curl -X DELETE http://localhost:8000/v1/locations/1/games/1/reservations
-```
-
-##### Notes
-```
-$ curl -X POST http://localhost:8000/v1/locations/1/games/1/notes -H 'Content-Type: application/json' -d '{"note":"Autoplunger is infested with cows"}'
-$ curl -X DELETE http://localhost:8000/v1/locations/1/games/1/notes/1
+$ curl -X POST http://localhost:8000/v1/games/1/reservations
+$ curl -X DELETE http://localhost:8000/v1/games/1/reservations
 ```
