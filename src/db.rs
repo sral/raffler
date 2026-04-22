@@ -527,10 +527,12 @@ impl Game {
 #[derive(Debug, Serialize)]
 pub struct ReservationStats {
     pub game_id: i64,
-    pub reservation_count: i64,
-    pub reserved_minutes: i64,
-    pub average_reserved_minutes: f64,
+    pub total_reservation_count: i64,
+    pub analysed_reservation_count: i64,
+    pub total_reserved_minutes: i64,
+    pub p25_reserved_minutes: f64,
     pub median_reserved_minutes: f64,
+    pub p75_reserved_minutes: f64,
 }
 
 impl ReservationStats {
@@ -548,21 +550,32 @@ impl ReservationStats {
         let stats = sqlx::query_as!(
             ReservationStats,
             r#"
-            WITH reservation_durations AS (
+            WITH durations AS (
+                SELECT EXTRACT(EPOCH FROM (released_at - reserved_at)) / 60 as duration_minutes
+                  FROM reservation
+                 WHERE game_id = $1
+                   AND released_at IS NOT NULL
+            ),
+            fences AS (
                 SELECT
-                    game_id,
-                    EXTRACT(EPOCH FROM (released_at - reserved_at)) / 60 as duration_minutes
-                 FROM reservation
-                WHERE game_id = $1
-                  AND released_at IS NOT NULL
+                    PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY duration_minutes) as q1,
+                    PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY duration_minutes) as q3
+                  FROM durations
+            ),
+            filtered AS (
+                SELECT d.duration_minutes
+                  FROM durations d, fences f
+                 WHERE d.duration_minutes <= f.q3 + 1.5 * (f.q3 - f.q1)
             )
             SELECT
                 $1 as "game_id!",
-                COUNT(*) as "reservation_count!",
-                COALESCE(SUM(duration_minutes)::bigint, 0) as "reserved_minutes!",
-                CAST(COALESCE(AVG(duration_minutes), 0) as float8) as "average_reserved_minutes!",
-                CAST(COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY duration_minutes), 0) as float8) as "median_reserved_minutes!"
-            FROM reservation_durations"#,
+                (SELECT COUNT(*) FROM durations) as "total_reservation_count!",
+                COUNT(*) as "analysed_reservation_count!",
+                COALESCE((SELECT SUM(duration_minutes)::bigint FROM durations), 0) as "total_reserved_minutes!",
+                CAST(COALESCE(PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY duration_minutes), 0) as float8) as "p25_reserved_minutes!",
+                CAST(COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY duration_minutes), 0) as float8) as "median_reserved_minutes!",
+                CAST(COALESCE(PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY duration_minutes), 0) as float8) as "p75_reserved_minutes!"
+            FROM filtered"#,
             game_id
         )
         .fetch_one(pool)
@@ -618,5 +631,130 @@ impl Note {
         .await?;
 
         Ok(note)
+    }
+}
+
+#[cfg(test)]
+mod stats_tests {
+    use super::*;
+
+    async fn setup_game(pool: &PgPool) -> i64 {
+        let loc = Location::add(pool, "test-location".to_string())
+            .await
+            .unwrap();
+        Game::add(pool, loc.id, "StatTest".to_string(), "STT".to_string())
+            .await
+            .unwrap()
+            .id
+    }
+
+    async fn insert_reservation(pool: &PgPool, game_id: i64, duration_minutes: i64) {
+        sqlx::query!(
+            r#"INSERT INTO reservation (game_id, reserved_at, released_at)
+                    VALUES ($1, now() - ($2::bigint * interval '1 minute'), now())"#,
+            game_id,
+            duration_minutes,
+        )
+        .execute(pool)
+        .await
+        .unwrap();
+    }
+
+    fn close(a: f64, b: f64) -> bool {
+        (a - b).abs() < 0.01
+    }
+
+    #[sqlx::test]
+    async fn stats_empty(pool: PgPool) {
+        let game_id = setup_game(&pool).await;
+        let stats = ReservationStats::get_reservations_stats_by_game_id(&pool, game_id)
+            .await
+            .unwrap();
+        assert_eq!(stats.total_reservation_count, 0);
+        assert_eq!(stats.analysed_reservation_count, 0);
+        assert_eq!(stats.total_reserved_minutes, 0);
+        assert_eq!(stats.p25_reserved_minutes, 0.0);
+        assert_eq!(stats.median_reserved_minutes, 0.0);
+        assert_eq!(stats.p75_reserved_minutes, 0.0);
+    }
+
+    #[sqlx::test]
+    async fn stats_single_reservation(pool: PgPool) {
+        let game_id = setup_game(&pool).await;
+        insert_reservation(&pool, game_id, 10).await;
+
+        let stats = ReservationStats::get_reservations_stats_by_game_id(&pool, game_id)
+            .await
+            .unwrap();
+        assert_eq!(stats.total_reservation_count, 1);
+        assert_eq!(stats.analysed_reservation_count, 1);
+        assert_eq!(stats.total_reserved_minutes, 10);
+        // IQR = 0, fence = value, single row passes.
+        assert!(close(stats.p25_reserved_minutes, 10.0));
+        assert!(close(stats.median_reserved_minutes, 10.0));
+        assert!(close(stats.p75_reserved_minutes, 10.0));
+    }
+
+    #[sqlx::test]
+    async fn stats_identical_durations_not_filtered(pool: PgPool) {
+        let game_id = setup_game(&pool).await;
+        for _ in 0..5 {
+            insert_reservation(&pool, game_id, 10).await;
+        }
+
+        let stats = ReservationStats::get_reservations_stats_by_game_id(&pool, game_id)
+            .await
+            .unwrap();
+        assert_eq!(stats.total_reservation_count, 5);
+        assert_eq!(stats.analysed_reservation_count, 5);
+        assert_eq!(stats.total_reserved_minutes, 50);
+        assert!(close(stats.p25_reserved_minutes, 10.0));
+        assert!(close(stats.p75_reserved_minutes, 10.0));
+    }
+
+    #[sqlx::test]
+    async fn stats_outlier_is_excluded(pool: PgPool) {
+        let game_id = setup_game(&pool).await;
+        for d in [5, 8, 10, 12, 15] {
+            insert_reservation(&pool, game_id, d).await;
+        }
+        insert_reservation(&pool, game_id, 1000).await;
+
+        let stats = ReservationStats::get_reservations_stats_by_game_id(&pool, game_id)
+            .await
+            .unwrap();
+        // Raw totals include the outlier.
+        assert_eq!(stats.total_reservation_count, 6);
+        assert_eq!(stats.total_reserved_minutes, 5 + 8 + 10 + 12 + 15 + 1000);
+        // Filtered set is {5, 8, 10, 12, 15} — 5 rows, p25=8, p50=10, p75=12.
+        assert_eq!(stats.analysed_reservation_count, 5);
+        assert!(close(stats.p25_reserved_minutes, 8.0));
+        assert!(close(stats.median_reserved_minutes, 10.0));
+        assert!(close(stats.p75_reserved_minutes, 12.0));
+    }
+
+    #[sqlx::test]
+    async fn stats_skewed_but_no_outlier(pool: PgPool) {
+        let game_id = setup_game(&pool).await;
+        // Skewed right (5..30 step 5) but max is within Q3 + 1.5*IQR, so nothing drops.
+        // Q1 = 11.25, Q3 = 23.75, fence = 23.75 + 18.75 = 42.5; max 30 <= 42.5.
+        for d in [5, 10, 15, 20, 25, 30] {
+            insert_reservation(&pool, game_id, d).await;
+        }
+
+        let stats = ReservationStats::get_reservations_stats_by_game_id(&pool, game_id)
+            .await
+            .unwrap();
+        assert_eq!(stats.total_reservation_count, 6);
+        assert_eq!(stats.analysed_reservation_count, 6);
+        assert_eq!(stats.total_reserved_minutes, 105);
+    }
+
+    #[sqlx::test]
+    async fn stats_game_not_found(pool: PgPool) {
+        let err = ReservationStats::get_reservations_stats_by_game_id(&pool, 999_999)
+            .await
+            .unwrap_err();
+        assert!(matches!(err, sqlx::Error::RowNotFound));
     }
 }
