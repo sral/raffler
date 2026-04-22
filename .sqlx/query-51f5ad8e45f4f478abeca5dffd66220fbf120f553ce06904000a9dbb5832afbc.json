@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO reservation (game_id, reserved_at, released_at)\n                    VALUES ($1, now() - ($2::bigint * interval '1 minute'), now())",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "51f5ad8e45f4f478abeca5dffd66220fbf120f553ce06904000a9dbb5832afbc"
+}
