@@ -11,6 +11,14 @@ export const GameStatsModal = React.memo(function GameStatsModal({
   onExited,
   stats,
 }) {
+  const outlierCount = stats
+    ? stats.total_reservation_count - stats.analysed_reservation_count
+    : 0;
+
+  const p25 = Math.round(stats?.p25_reserved_minutes ?? 0);
+  const p50 = Math.round(stats?.median_reserved_minutes ?? 0);
+  const p75 = Math.round(stats?.p75_reserved_minutes ?? 0);
+
   return (
     <Modal show={show} onHide={onHide} onExited={onExited}>
       {stats && (
@@ -26,23 +34,28 @@ export const GameStatsModal = React.memo(function GameStatsModal({
                   <Table striped bordered hover>
                     <tbody>
                       <tr>
-                        <td>Total Reservations</td>
-                        <td>{stats.reservation_count}</td>
+                        <td>Reservations</td>
+                        <td>{stats.total_reservation_count}</td>
                       </tr>
                       <tr>
-                        <td>Total Reserved Time</td>
-                        <td>{formatDuration(stats.reserved_minutes)}</td>
+                        <td>Total play time</td>
+                        <td>{formatDuration(stats.total_reserved_minutes)}</td>
                       </tr>
                       <tr>
-                        <td>Average Reservation Time</td>
-                        <td>{Math.round(stats.average_reserved_minutes)} minutes</td>
-                      </tr>
-                      <tr>
-                        <td>Median Reservation Time</td>
-                        <td>{Math.round(stats.median_reserved_minutes)} minutes</td>
+                        <td>Typical session</td>
+                        <td>
+                          {stats.analysed_reservation_count > 0
+                            ? `${p25}–${p75} min (median ${p50} min)`
+                            : '—'}
+                        </td>
                       </tr>
                     </tbody>
                   </Table>
+                  {outlierCount > 0 && (
+                    <p className="text-muted small mb-0">
+                      Typical session excludes {outlierCount} outlier{outlierCount === 1 ? '' : 's'}.
+                    </p>
+                  )}
                 </Col>
               </Row>
             </Container>

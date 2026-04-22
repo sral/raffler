@@ -107,20 +107,24 @@ impl From<db::Note> for NoteResponse {
 #[derive(Debug, Serialize)]
 pub struct ReservationStatsResponse {
     game_id: i64,
-    reservation_count: i64,
-    reserved_minutes: i64,
-    average_reserved_minutes: f64,
+    total_reservation_count: i64,
+    analysed_reservation_count: i64,
+    total_reserved_minutes: i64,
+    p25_reserved_minutes: f64,
     median_reserved_minutes: f64,
+    p75_reserved_minutes: f64,
 }
 
 impl From<db::ReservationStats> for ReservationStatsResponse {
     fn from(stats: db::ReservationStats) -> Self {
         ReservationStatsResponse {
             game_id: stats.game_id,
-            reservation_count: stats.reservation_count,
-            reserved_minutes: stats.reserved_minutes,
-            average_reserved_minutes: stats.average_reserved_minutes,
+            total_reservation_count: stats.total_reservation_count,
+            analysed_reservation_count: stats.analysed_reservation_count,
+            total_reserved_minutes: stats.total_reserved_minutes,
+            p25_reserved_minutes: stats.p25_reserved_minutes,
             median_reserved_minutes: stats.median_reserved_minutes,
+            p75_reserved_minutes: stats.p75_reserved_minutes,
         }
     }
 }

@@ -527,10 +527,12 @@ impl Game {
 #[derive(Debug, Serialize)]
 pub struct ReservationStats {
     pub game_id: i64,
-    pub reservation_count: i64,
-    pub reserved_minutes: i64,
-    pub average_reserved_minutes: f64,
+    pub total_reservation_count: i64,
+    pub analysed_reservation_count: i64,
+    pub total_reserved_minutes: i64,
+    pub p25_reserved_minutes: f64,
     pub median_reserved_minutes: f64,
+    pub p75_reserved_minutes: f64,
 }
 
 impl ReservationStats {
@@ -567,10 +569,12 @@ impl ReservationStats {
             )
             SELECT
                 $1 as "game_id!",
-                COUNT(*) as "reservation_count!",
-                COALESCE(SUM(duration_minutes)::bigint, 0) as "reserved_minutes!",
-                CAST(COALESCE(AVG(duration_minutes), 0) as float8) as "average_reserved_minutes!",
-                CAST(COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY duration_minutes), 0) as float8) as "median_reserved_minutes!"
+                (SELECT COUNT(*) FROM durations) as "total_reservation_count!",
+                COUNT(*) as "analysed_reservation_count!",
+                COALESCE((SELECT SUM(duration_minutes)::bigint FROM durations), 0) as "total_reserved_minutes!",
+                CAST(COALESCE(PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY duration_minutes), 0) as float8) as "p25_reserved_minutes!",
+                CAST(COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY duration_minutes), 0) as float8) as "median_reserved_minutes!",
+                CAST(COALESCE(PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY duration_minutes), 0) as float8) as "p75_reserved_minutes!"
             FROM filtered"#,
             game_id
         )

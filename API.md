@@ -153,14 +153,18 @@ Reserve a random unreserved, enabled game at the location.
 
 Return aggregate stats over completed reservations (released only).
 
+Totals (`total_reservation_count`, `total_reserved_minutes`) are computed over every completed reservation. The distribution fields (`p25_reserved_minutes`, `median_reserved_minutes`, `p75_reserved_minutes`) and `analysed_reservation_count` are computed after Tukey IQR outlier filtering (rows with duration > Q3 + 1.5 × IQR are dropped) so long-tail reservations — typically the 90+ minute cleanup-released ones — don't distort session-length stats.
+
 **Response** `200`:
 ```json
 {
   "game_id": 1,
-  "reservation_count": 42,
-  "reserved_minutes": 1337,
-  "average_reserved_minutes": 31.83,
-  "median_reserved_minutes": 25.5
+  "total_reservation_count": 50,
+  "analysed_reservation_count": 45,
+  "total_reserved_minutes": 1337,
+  "p25_reserved_minutes": 22.5,
+  "median_reserved_minutes": 30.0,
+  "p75_reserved_minutes": 45.0
 }
 ```
 **Errors** — `404 Game not found`
