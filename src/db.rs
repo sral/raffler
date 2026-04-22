@@ -548,13 +548,22 @@ impl ReservationStats {
         let stats = sqlx::query_as!(
             ReservationStats,
             r#"
-            WITH reservation_durations AS (
+            WITH durations AS (
+                SELECT EXTRACT(EPOCH FROM (released_at - reserved_at)) / 60 as duration_minutes
+                  FROM reservation
+                 WHERE game_id = $1
+                   AND released_at IS NOT NULL
+            ),
+            fences AS (
                 SELECT
-                    game_id,
-                    EXTRACT(EPOCH FROM (released_at - reserved_at)) / 60 as duration_minutes
-                 FROM reservation
-                WHERE game_id = $1
-                  AND released_at IS NOT NULL
+                    PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY duration_minutes) as q1,
+                    PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY duration_minutes) as q3
+                  FROM durations
+            ),
+            filtered AS (
+                SELECT d.duration_minutes
+                  FROM durations d, fences f
+                 WHERE d.duration_minutes <= f.q3 + 1.5 * (f.q3 - f.q1)
             )
             SELECT
                 $1 as "game_id!",
@@ -562,7 +571,7 @@ impl ReservationStats {
                 COALESCE(SUM(duration_minutes)::bigint, 0) as "reserved_minutes!",
                 CAST(COALESCE(AVG(duration_minutes), 0) as float8) as "average_reserved_minutes!",
                 CAST(COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY duration_minutes), 0) as float8) as "median_reserved_minutes!"
-            FROM reservation_durations"#,
+            FROM filtered"#,
             game_id
         )
         .fetch_one(pool)
