@@ -47,7 +47,9 @@ export function Raffler() {
 
   // Ref for selectedLocation so async callbacks always read the current value
   const selectedLocationRef = React.useRef(selectedLocation);
-  selectedLocationRef.current = selectedLocation;
+  React.useEffect(() => {
+    selectedLocationRef.current = selectedLocation;
+  }, [selectedLocation]);
 
   const [reservedGame, setReservedGame] = React.useState(null);
   const [gameDetails, setGameDetails] = React.useState(null);
@@ -356,6 +358,7 @@ export function Raffler() {
       />
 
       <EditGameModal
+        key={editingGame?.id ?? 'none'}
         show={editGameModal.show}
         onHide={editGameModal.close}
         onExited={() => setEditingGame(null)}
