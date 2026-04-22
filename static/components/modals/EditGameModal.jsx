@@ -8,17 +8,9 @@ export function EditGameModal({
   game,
   onEditGame,
 }) {
-  const [name, setName] = React.useState('');
-  const [abbreviation, setAbbreviation] = React.useState('');
+  const [name, setName] = React.useState(game?.name ?? '');
+  const [abbreviation, setAbbreviation] = React.useState(game?.abbreviation ?? '');
   const [error, setError] = React.useState('');
-
-  React.useEffect(() => {
-    if (game) {
-      setName(game.name);
-      setAbbreviation(game.abbreviation);
-      setError('');
-    }
-  }, [game]);
 
   const handleClose = React.useCallback(() => {
     setError('');
