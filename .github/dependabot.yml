@@ -9,6 +9,11 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+    ignore:
+      # eslint-plugin-react@7.37.5 peer-deps eslint up to ^9.7 only;
+      # remove this once the plugin adds v10 support.
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: "/"
